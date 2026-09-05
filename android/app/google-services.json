@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "648114575371",
+    "project_id": "khadem-4e362",
+    "storage_bucket": "khadem-4e362.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:648114575371:android:3814d0eb96786966878f0e",
+        "android_client_info": {
+          "package_name": "com.example.khadem"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMHTj-7ZW3m6EAjIo29_3Rp-0iLvfFaq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
