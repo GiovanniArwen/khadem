@@ -1,98 +1,87 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:khadem/core/services/local/shared_pref.dart';
-import 'package:khadem/features/auth/data/models/servant_model.dart';
 import 'package:khadem/features/auth/data/repo/auth_repo.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_event.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_state.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitialState()) {
-    on((event, emit) async {
-      if (event is LoginEvent) {
-        await login(event, emit);
-      } else if (event is SignUpEvent) {
-        await signUp(event, emit);
-      }
-      
-      //  else if (event is ServantRegistrationEvent) {
-      //   await updateServant(emit);
-      // }
+    on<LoginEvent>((event, emit) async {
+      await login(event, emit);
+    });
+
+    on<SignUpEvent>((event, emit) async {
+      await signUp(event, emit);
     });
   }
 
-  final formKey = GlobalKey<FormState>();
-  final nameController = TextEditingController();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-
-  final bioController = TextEditingController();
-  final openHourController = TextEditingController();
-  final closeHourController = TextEditingController();
-  final addressController = TextEditingController();
-  final phone1Controller = TextEditingController();
-  final phone2Controller = TextEditingController();
   String? specialization;
   String imageUrl = '';
 
-  signUp(SignUpEvent event, Emitter<AuthState> emit) async {
+  Future<void> signUp(SignUpEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoadingState());
-    var result = await AuthRepo.signUp(
-      name: nameController.text,
-      email: emailController.text,
-      password: passwordController.text,
-      userType: event.userType,
+
+    final result = await AuthRepo.signUp(
+      name: event.name,
+      email: event.email,
+      password: event.password,
+      isServant: event.isServant,
+      isChurchAdmin: event.isChurchAdmin,
     );
+
     result.fold(
       (error) {
         emit(AuthErrorState(error));
       },
-      (data) {
-        emit(AuthSuccessState(data));
+      (roles) {
+        final user = FirebaseAuth.instance.currentUser;
+
+        print('================ AUTH BLOC SIGNUP ================');
+        print('FIREBASE USER: $user');
+        print('FIREBASE UID: "${user?.uid}"');
+        print('===================================================');
+
+        emit(
+          AuthSuccessState(
+            isServant: roles.isServant,
+            isChurchAdmin: roles.isChurchAdmin,
+            uid: user?.uid ?? '',
+          ),
+        );
       },
     );
   }
 
-  login(LoginEvent event, Emitter<AuthState> emit) async {
+  Future<void> login(LoginEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoadingState());
-    var result = await AuthRepo.login(
-      email: emailController.text,
-      password: passwordController.text,
+
+    final result = await AuthRepo.login(
+      email: event.email,
+      password: event.password,
     );
+
     result.fold(
       (error) {
         emit(AuthErrorState(error));
       },
-      (data) {
-        emit(AuthSuccessState(data));
+      (roles) {
+        final user = FirebaseAuth.instance.currentUser;
+
+        print('================ AUTH BLOC ================');
+        print('FIREBASE USER: $user');
+        print('FIREBASE UID: "${user?.uid}"');
+        print('===========================================');
+
+        emit(
+          AuthSuccessState(
+            isServant: roles.isServant,
+            isChurchAdmin: roles.isChurchAdmin,
+            uid: user?.uid ?? '',
+          ),
+        );
       },
     );
   }
-
-  // updateServant(Emitter<AuthState> emit) async {
-  //   emit(AuthLoadingState());
-  //   var result = await AuthRepo.updateServantData(
-  //     ServantModel(
-  //       uid: SharedPref.getUserId(),
-  //       bio: bioController.text,
-  //       openHour: openHourController.text,
-  //       closeHour: closeHourController.text,
-  //       address: addressController.text,
-  //       phone1: phone1Controller.text,
-  //       phone2: phone2Controller.text,
-  //       specialization: specialization,
-  //       image: imageUrl,
-  //     ),
-  //   );
-  //   result.fold(
-  //     (error) {
-  //       emit(AuthErrorState(error));
-  //     },
-  //     (data) {
-  //       emit(ServantRegistrationSuccessState());
-  //     },
-  //   );
-  // }
 }
 
 // Auth (small DB) => id, name, email, password, phone, image

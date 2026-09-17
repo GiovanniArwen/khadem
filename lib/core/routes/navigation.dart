@@ -16,3 +16,7 @@ pushToBase(BuildContext context, String route, {Object? extra}) {
 pop(BuildContext context) {
   return context.pop();
 }
+
+pushAndRemoveUntil(BuildContext context, String route, {Object? extra}) {
+  return context.go(route, extra: extra);
+}

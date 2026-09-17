@@ -51,4 +51,5 @@ class SharedPref {
   static Future<bool> remove(String key) async {
     return await pref.remove(key);
   }
+
 }

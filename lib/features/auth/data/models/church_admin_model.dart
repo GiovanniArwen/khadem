@@ -9,6 +9,10 @@ class ChurchAdminModel {
   String? city;
   String? uid;
 
+  String? meetingName;
+  String? church;
+  String? governorate;
+
   ChurchAdminModel({
     this.name,
     this.image,
@@ -19,6 +23,9 @@ class ChurchAdminModel {
     this.city,
     this.uid,
     this.gender,
+    this.meetingName,
+    this.church,
+    this.governorate,
   });
 
   ChurchAdminModel.fromJson(Map<String, dynamic> json) {
@@ -31,24 +38,32 @@ class ChurchAdminModel {
     city = json['city'];
     uid = json['uid'];
     gender = json['gender'];
+
+    meetingName = json['meetingName'];
+    church = json['church'];
+    governorate = json['governorate'];
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
-    data['name'] = name;
-    data['image'] = image;
-    data['age'] = age;
-    data['email'] = email;
-    data['phone'] = phone;
-    data['bio'] = bio;
-    data['city'] = city;
-    data['uid'] = uid;
-    data['gender'] = gender;
-    return data;
+    return {
+      'name': name,
+      'image': image,
+      'age': age,
+      'email': email,
+      'phone': phone,
+      'bio': bio,
+      'city': city,
+      'uid': uid,
+      'gender': gender,
+      'meetingName': meetingName,
+      'church': church,
+      'governorate': governorate,
+    };
   }
 
   Map<String, dynamic> toUpdateData() {
-    final Map<String, dynamic> data = <String, dynamic>{};
+    final Map<String, dynamic> data = {};
+
     if (name != null) data['name'] = name;
     if (image != null) data['image'] = image;
     if (age != null) data['age'] = age;
@@ -57,6 +72,19 @@ class ChurchAdminModel {
     if (bio != null) data['bio'] = bio;
     if (city != null) data['city'] = city;
     if (gender != null) data['gender'] = gender;
+
+    if (meetingName != null) {
+      data['meetingName'] = meetingName;
+    }
+
+    if (church != null) {
+      data['church'] = church;
+    }
+
+    if (governorate != null) {
+      data['governorate'] = governorate;
+    }
+
     return data;
   }
 }

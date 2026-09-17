@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:khadem/core/constants/app_images.dart';
 import 'package:khadem/core/routes/navigation.dart';
 import 'package:khadem/core/routes/routes.dart';
+import 'package:khadem/features/auth/data/repo/auth_repo.dart';
 import 'package:svg_flutter/svg.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -13,12 +15,52 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
+  @override
+  // void initState() {
+  //   super.initState();
+
+  //   Future.delayed(const Duration(seconds: 1), () {
+  //     if (!mounted) return;
+
+  //     pushWithReplacement(context, Routes.login);
+  //   });
+  // }
+
   void initState() {
-     super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      pushWithReplacement(context, Routes.login);
-    });
+    super.initState();
+    _checkLogin();
+  }
+
+  Future<void> _checkLogin() async {
+    await Future.delayed(const Duration(seconds: 1));
+
+        final user = FirebaseAuth.instance.currentUser;
+
+    if (!mounted) return;
+
+     if (user == null) {
+       pushWithReplacement(context, Routes.login);
+       return;
+     }
+
+     final result = await AuthRepo.getCurrentUserRoles();
+
+    if (!mounted) return;
+    result.fold(
+      (error) {
+        pushWithReplacement(context, Routes.login);
+      },
+      (roles) {
+        pushWithReplacement(
+          context,
+          Routes.main,
+          extra: {
+            'isServant': roles.isServant,
+            'isChurchAdmin': roles.isChurchAdmin,
+          },
+        );
+      },
+    );
   }
 
   @override

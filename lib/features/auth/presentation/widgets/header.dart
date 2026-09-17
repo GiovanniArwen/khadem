@@ -47,8 +47,8 @@ class _HeaderState extends State<Header> {
         // Welcome Header
         Text(
           textAlign: TextAlign.end,
-          widget.title ?? 'put your title here',
-                  //  'أهلا بيـك في تـطبيـق خـادم',
+          widget.title,
+                  
 
           style: TextStyles.title.copyWith(
             fontSize: 32,

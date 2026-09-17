@@ -1,18 +1,30 @@
 
-import 'package:khadem/features/auth/data/models/user_type_enum.dart';
 
 class AuthEvent {}
 
 class LoginEvent extends AuthEvent {
-  final UserTypeEnum userType;
+  final String email;
+  final String password;
 
-  LoginEvent({required this.userType});
+  LoginEvent({
+    required this.email,
+    required this.password,
+  });
 }
 
 class SignUpEvent extends AuthEvent {
-  final UserTypeEnum userType;
+  final String name;
+  final String email;
+  final String password;
+  final bool isServant;
+  final bool isChurchAdmin;
 
-  SignUpEvent({required this.userType});
+  SignUpEvent({
+    required this.name,
+    required this.email,
+    required this.password,
+    required this.isServant,
+    required this.isChurchAdmin,
+  });
 }
-
 class ServantRegistrationEvent extends AuthEvent {}

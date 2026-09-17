@@ -2,78 +2,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:khadem/core/services/local/shared_pref.dart';
-import 'package:khadem/features/auth/data/models/user_type_enum.dart';
+import 'package:khadem/features/auth/data/models/user_role.dart';
 
 class AuthRepo {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
   // =========================
-  // Sign Up
+  // Get Current User Roles
   // =========================
-
-  static Future<Either<String, UserTypeEnum>> signUp({
-    required String name,
-    required String email,
-    required String password,
-    required UserTypeEnum userType,
-  }) async {
+  static Future<Either<String, AuthUserRoles>>
+      getCurrentUserRoles() async {
     try {
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
+      final user = _auth.currentUser;
 
-      final user = userCredential.user!;
-
-      await user.updateDisplayName(name);
-
-      await SharedPref.setUserId(user.uid);
-
-      // Create user document in Firestore
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'name': name,
-        'email': email.trim(),
-        'role': userType.name,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      return Right(userType);
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'weak-password') {
-        return const Left('كلمة المرور ضعيفة');
-      } else if (e.code == 'email-already-in-use') {
-        return const Left('البريد الإلكتروني مستخدم بالفعل');
-      } else if (e.code == 'invalid-email') {
-        return const Left('البريد الإلكتروني غير صحيح');
+      if (user == null) {
+        return const Left('المستخدم غير مسجل الدخول');
       }
 
-      return const Left('حدث خطأ ما');
-    } catch (e) {
-      return const Left('حدث خطأ ما');
-    }
-  }
-
-  // =========================
-  // Login
-  // =========================
-
-  static Future<Either<String, UserTypeEnum>> login({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
-
-      final user = credential.user!;
-
-      SharedPref.setUserId(user.uid);
-
-      // Get user data from Firestore
       final userDoc = await _firestore
           .collection('users')
           .doc(user.uid)
@@ -85,24 +32,169 @@ class AuthRepo {
 
       final data = userDoc.data()!;
 
-      final role = data['role'];
+      final isServant = data['isServant'] == true;
+      final isChurchAdmin = data['isChurchAdmin'] == true;
 
-      if (role == UserTypeEnum.servant.name) {
-        return const Right(UserTypeEnum.servant);
+      if (!isServant && !isChurchAdmin) {
+        return const Left('المستخدم ليس لديه صلاحية');
       }
 
-      if (role == UserTypeEnum.churchAdmin.name) {
-        return const Right(UserTypeEnum.churchAdmin);
+      await SharedPref.setUserId(user.uid);
+
+      return Right(
+        AuthUserRoles(
+          isServant: isServant,
+          isChurchAdmin: isChurchAdmin,
+        ),
+      );
+    } catch (e) {
+      return const Left(
+        'حدث خطأ أثناء تحميل بيانات المستخدم',
+      );
+    }
+  }
+
+  // =========================
+  // Sign Up
+  // =========================
+  static Future<Either<String, AuthUserRoles>> signUp({
+    required String name,
+    required String email,
+    required String password,
+    required bool isServant,
+    required bool isChurchAdmin,
+  }) async {
+    try {
+      final userCredential =
+          await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      final user = userCredential.user!;
+
+      await user.updateDisplayName(name);
+
+      await SharedPref.setUserId(user.uid);
+
+      // =========================
+      // Create User Document
+      // =========================
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .set({
+        'uid': user.uid,
+        'name': name,
+        'email': email.trim(),
+
+        // Roles
+        'isServant': isServant,
+        'isChurchAdmin': isChurchAdmin,
+
+        // Verification
+        'servantStatus':
+            isServant ? 'approved' : 'not_requested',
+
+        'churchAdminStatus':
+            isChurchAdmin ? 'approved' : 'not_requested',
+
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      return Right(
+        AuthUserRoles(
+          isServant: isServant,
+          isChurchAdmin: isChurchAdmin,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'weak-password') {
+        return const Left('كلمة المرور ضعيفة');
       }
 
-      return const Left('نوع المستخدم غير صحيح');
+      if (e.code == 'email-already-in-use') {
+        return const Left(
+          'البريد الإلكتروني مستخدم بالفعل',
+        );
+      }
+
+      if (e.code == 'invalid-email') {
+        return const Left(
+          'البريد الإلكتروني غير صحيح',
+        );
+      }
+
+      return const Left('حدث خطأ ما');
+    } catch (e) {
+      return const Left('حدث خطأ ما');
+    }
+  }
+
+  // =========================
+  // Login
+  // =========================
+  static Future<Either<String, AuthUserRoles>> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final credential =
+          await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      final user = credential.user!;
+
+      await SharedPref.setUserId(user.uid);
+
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        return const Left(
+          'بيانات المستخدم غير موجودة',
+        );
+      }
+
+      final data = userDoc.data()!;
+
+      final isServant = data['isServant'] == true;
+      final isChurchAdmin =
+          data['isChurchAdmin'] == true;
+
+      if (!isServant && !isChurchAdmin) {
+        return const Left(
+          'المستخدم ليس لديه صلاحية',
+        );
+      }
+
+      return Right(
+        AuthUserRoles(
+          isServant: isServant,
+          isChurchAdmin: isChurchAdmin,
+        ),
+      );
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
-        return const Left('البريد الإلكتروني غير مستخدم');
-      } else if (e.code == 'wrong-password') {
-        return const Left('كلمة المرور غير صحيحة');
-      } else if (e.code == 'invalid-credential') {
-        return const Left('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+        return const Left(
+          'البريد الإلكتروني غير مستخدم',
+        );
+      }
+
+      if (e.code == 'wrong-password') {
+        return const Left(
+          'كلمة المرور غير صحيحة',
+        );
+      }
+
+      if (e.code == 'invalid-credential') {
+        return const Left(
+          'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+        );
       }
 
       return const Left('حدث خطأ ما');
@@ -111,104 +203,3 @@ class AuthRepo {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-// import 'package:dartz/dartz.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:khadem/features/auth/data/models/user_type_enum.dart';
-
-// class AuthRepo {
-//   static Future<Either<String, UserTypeEnum>> signUp({
-//     required String name,
-//     required String email,
-//     required String password,
-//     required UserTypeEnum userType,
-//   }) async {
-//     try {
-//       var userCredential = await FirebaseAuth.instance
-//           .createUserWithEmailAndPassword(email: email, password: password);
-
-//       User user = userCredential.user!;
-      
-//       user.updateDisplayName(name);
-//       SharedPref.setUserId(user.uid);
-//       // store user data in firestore
-//       // use PhotoURL param as user type (Role)
-//       if (userType == UserTypeEnum.doctor) {
-//         user.updatePhotoURL('2');
-//         var doctor = DoctorModel(
-//           name: name,
-//           email: email,
-//           uid: user.uid,
-//           rating: 3,
-//         );
-//         await FirestoreServices.createDoctor(doctor);
-//         return Right(userType);
-//       } else {
-//         user.updatePhotoURL('1');
-//         var patient = PatientModel(name: name, email: email, uid: user.uid);
-//         await FirestoreServices.createPatient(patient);
-//         return Right(userType);
-//       }
-//     } on FirebaseAuthException catch (e) {
-//       if (e.code == 'weak-password') {
-//         return Left('كلمة المرور ضعيفة');
-//       } else if (e.code == 'email-already-in-use') {
-//         return Left('البريد الالكتروني مستخدم بالفعل');
-//       } else {
-//         return Left('حدث خطأ ما');
-//       }
-//     } catch (e) {
-//       return Left('حدث خطأ ما');
-//     }
-//   }
-
-//   static Future<Either<String, UserTypeEnum>> login({
-//     required String email,
-//     required String password,
-//   }) async {
-//     try {
-//       var credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-//         email: email,
-//         password: password,
-//       );
-//       User user = credential.user!;
-
-//       SharedPref.setUserId(user.uid);
-
-//       if (user.photoURL == '1') {
-//         return Right(UserTypeEnum.patient);
-//       } else {
-//         return Right(UserTypeEnum.doctor);
-//       }
-//     } on FirebaseAuthException catch (e) {
-//       if (e.code == 'user-not-found') {
-//         return Left('البريد الالكتروني غير مستخدم');
-//       } else if (e.code == 'wrong-password') {
-//         return Left('كلمة المرور غير صحيحة');
-//       } else {
-//         return Left('حدث خطأ ما');
-//       }
-//     } catch (e) {
-//       return Left('حدث خطأ ما');
-//     }
-//   }
-
-//   static Future<Either<String, bool>> updateDoctorData(
-//     DoctorModel model,
-//   ) async {
-//     try {
-//       await FirestoreServices.updateDoctor(model);
-//       return const Right(true);
-//     } catch (e) {
-//       return Left('حدث خطأ ما');
-//     }
-//   }
-// }

@@ -1,1 +1,4 @@
-enum UserTypeEnum { servant, churchAdmin }
+enum UserTypeEnum {
+  servant,
+  churchAdmin,
+}

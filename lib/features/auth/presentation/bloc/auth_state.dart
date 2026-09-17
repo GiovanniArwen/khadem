@@ -1,6 +1,3 @@
-
-import 'package:khadem/features/auth/data/models/user_type_enum.dart';
-
 class AuthState {}
 
 class AuthInitialState extends AuthState {}
@@ -8,14 +5,19 @@ class AuthInitialState extends AuthState {}
 class AuthLoadingState extends AuthState {}
 
 class AuthSuccessState extends AuthState {
-  final UserTypeEnum userType;
+  final bool isServant;
+  final bool isChurchAdmin;
+  final String uid;
 
-  AuthSuccessState(this.userType);
+  AuthSuccessState({
+    required this.isServant,
+    required this.isChurchAdmin,
+    required this.uid,
+  });
 }
-class ServantRegistrationSuccessState extends AuthState {}
 
 class AuthErrorState extends AuthState {
   final String message;
+
   AuthErrorState(this.message);
 }
-
