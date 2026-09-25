@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:khadem/features/auth/presentation/page/verify_email.dart';
 import 'package:khadem/features/completeProfile/presentation/bloc/complete_profile_bloc.dart';
 import 'package:khadem/features/completeProfile/presentation/page/complete_profile_screen.dart';
 import 'package:khadem/features/auth/presentation/page/login_screen.dart';
 import 'package:khadem/features/auth/presentation/page/signup_screen.dart';
+import 'package:khadem/features/intro/onboarding/onboarding_screen.dart';
+import 'package:khadem/features/mainScreen/agenda/data/repo/agenda_repo.dart';
+import 'package:khadem/features/mainScreen/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:khadem/features/mainScreen/agenda/presentation/pages/agenda_screen.dart';
 import 'package:khadem/features/mainScreen/chat/data/repo/chat_repo.dart';
 import 'package:khadem/features/mainScreen/chat/data/repo/user_profile_repo.dart';
 import 'package:khadem/features/mainScreen/chat/presentation/bloc/chat_bloc.dart';
@@ -17,11 +22,11 @@ import 'package:khadem/features/mainScreen/profile/page/profile_screen.dart';
 import 'package:khadem/features/mainScreen/servants/data/models/servant_model.dart';
 import 'package:khadem/features/mainScreen/servants/presentation/page/servant_screen.dart';
 import 'package:khadem/features/mainScreen/servants/presentation/widgets/servant_details_screen.dart';
+
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class Routes {
   static const String splash = '/';
-  static const String onboarding = '/onboarding';
   static const String welcome = '/welcome';
   static const String login = '/login_screen';
   static const String signup = '/signup_screen';
@@ -39,7 +44,10 @@ class Routes {
   static const String profile = '/profile_screen';
   static const String servants = '/servant_screen';
   static const String servantDetails = '/servant_details_screen';
-  static const String preview = '/preview_screen';
+  // static const String preview = '/preview_screen';
+  static const String agenda = '/agenda_screen';
+  static const String verifyEmail = '/verify_email';
+  static const String onboarding = '/onboarding_screen';
 
   static final routes = GoRouter(
     navigatorKey: navigatorKey,
@@ -106,7 +114,33 @@ class Routes {
           return ServantDetailsScreen(servant: servant);
         },
       ),
+      GoRoute(
+        path: verifyEmail,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return VerifyEmailScreen(
+            isServant: data['isServant'] as bool ?? false,
+            isChurchAdmin: data['isChurchAdmin'] as bool ?? false,
+            uid: data['uid'] as String ?? '',
+            email: data['email'] as String ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: agenda,
+        builder: (context, state) {
+          final uid = state.extra as String;
 
+          return BlocProvider(
+            create: (_) => AgendaBloc(agendaRepo: AgendaRepo()),
+            child: AgendaScreen(uid: uid),
+          );
+        },
+      ),
+      GoRoute(
+        path: onboarding,
+        builder: (context, state) => const OnboardingScreen(),
+      ),
       GoRoute(
         path: profile,
         builder: (context, state) {

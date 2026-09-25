@@ -1,5 +1,4 @@
-import 'dart:async';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:khadem/features/mainScreen/servants/data/models/servant_model.dart';
 import 'package:khadem/features/mainScreen/servants/presentation/bloc/servant_states.dart';
@@ -9,8 +8,6 @@ import 'servant_event.dart';
 
 class ServantBloc extends Bloc<ServantEvent, ServantState> {
   final ServantRepo _repo = ServantRepo();
-
-  StreamSubscription<List<ServantModel>>? _servantsSubscription;
 
   List<ServantModel> _allServants = [];
 
@@ -26,14 +23,21 @@ class ServantBloc extends Bloc<ServantEvent, ServantState> {
   ) async {
     emit(ServantLoadingState());
 
-    await _servantsSubscription?.cancel();
+    // emit.onEach بيقفل الـ stream لوحده لما الـ bloc يتقفل،
+    // وبيخلّي الـ emit يشتغل بأمان جوه الـ stream (بدل listen العادي)
+    await emit.onEach<List<ServantModel>>(
+      _repo.getApprovedServants(),
+      onData: (servants) {
+        // حسابي أنا مايظهرش في قايمة الخدام
+        final myUid = FirebaseAuth.instance.currentUser?.uid;
 
-    _servantsSubscription = _repo.getApprovedServants().listen(
-      (servants) {
-        _allServants = servants;
-        add(SearchServantsEvent(''));
+        _allServants = servants
+            .where((servant) => servant.uid != myUid)
+            .toList();
+
+        emit(ServantLoadedState(_allServants));
       },
-      onError: (_) {
+      onError: (error, stackTrace) {
         emit(ServantErrorState('حدث خطأ أثناء تحميل الخدام'));
       },
     );
@@ -73,11 +77,5 @@ class ServantBloc extends Bloc<ServantEvent, ServantState> {
     }).toList();
 
     emit(ServantLoadedState(results));
-  }
-
-  @override
-  Future<void> close() {
-    _servantsSubscription?.cancel();
-    return super.close();
   }
 }

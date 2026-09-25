@@ -21,3 +21,9 @@ class AuthErrorState extends AuthState {
 
   AuthErrorState(this.message);
 }
+
+class ForgotPasswordSuccessState extends AuthState {
+  final String message;
+
+  ForgotPasswordSuccessState(this.message);
+}

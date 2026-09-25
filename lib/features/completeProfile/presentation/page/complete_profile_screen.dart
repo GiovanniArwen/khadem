@@ -14,6 +14,10 @@ import 'package:khadem/core/utils/colors.dart';
 import 'package:khadem/features/completeProfile/presentation/bloc/complete_profile_bloc.dart';
 import 'package:khadem/features/completeProfile/presentation/bloc/complete_profile_event.dart';
 import 'package:khadem/features/completeProfile/presentation/bloc/complete_profile_state.dart';
+import 'package:khadem/features/completeProfile/presentation/widgets/governorate_dropdown.dart';
+import 'package:khadem/features/completeProfile/presentation/widgets/profile_text_field.dart';
+import 'package:khadem/features/completeProfile/presentation/widgets/sectioncard.dart';
+import 'package:khadem/features/completeProfile/presentation/widgets/specialization_selector.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   final bool isServant;
@@ -322,11 +326,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // ===== البيانات الأساسية =====
-                          _SectionCard(
+                          SectionCard(
                             icon: Icons.person_outline_rounded,
                             title: 'البيانات الأساسية',
                             children: [
-                              _buildField(
+                              ProfileTextField(
                                 controller: phone1Controller,
                                 label: 'رقم الهاتف',
                                 hint: '01xxxxxxxxx',
@@ -348,7 +352,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                   return null;
                                 },
                               ),
-                              _buildField(
+                              ProfileTextField(
                                 controller: phone2Controller,
                                 label: 'رقم هاتف إضافي (اختياري)',
                                 hint: '01xxxxxxxxx',
@@ -371,7 +375,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                   return null;
                                 },
                               ),
-                              _buildField(
+                              ProfileTextField(
                                 controller: ageController,
                                 label: 'السن',
                                 hint: 'مثال: 25',
@@ -394,9 +398,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                   return null;
                                 },
                               ),
-                              _buildGovernorateDropdown(),
+                              GovernorateDropdown(
+                                value: selectedGovernorate,
+                                governorates: governorates,
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedGovernorate = value;
+                                  });
+                                },
+                              ),
                               const SizedBox(height: 18),
-                              _buildField(
+                              ProfileTextField(
                                 controller: churchController,
                                 label: 'اسم الكنيسة',
                                 hint: 'مثال: كنيسة مارجرجس',
@@ -414,15 +426,23 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           // ===== بيانات الخادم =====
                           if (widget.isServant) ...[
                             const SizedBox(height: 18),
-                            _SectionCard(
+                            SectionCard(
                               icon: Icons.volunteer_activism_rounded,
                               title: 'بيانات الخادم',
                               children: [
-                                _buildSpecializations(),
+                                SpecializationSelector(
+                                  value: selectedSpecialization,
+                                  specializations: specializations,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedSpecialization = value;
+                                    });
+                                  },
+                                ),
                                 const SizedBox(height: 20),
                                 _buildTimeRow(),
                                 const SizedBox(height: 18),
-                                _buildField(
+                                ProfileTextField(
                                   controller: bioController,
                                   label: 'نبذة عنك (اختياري)',
                                   hint: 'اكتب نبذة قصيرة عن خدمتك وخبرتك',
@@ -438,11 +458,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                           // ===== بيانات مسؤول الاجتماع =====
                           if (widget.isChurchAdmin) ...[
                             const SizedBox(height: 18),
-                            _SectionCard(
+                            SectionCard(
                               icon: Icons.groups_outlined,
                               title: 'بيانات مسؤول الاجتماع',
                               children: [
-                                _buildField(
+                                ProfileTextField(
                                   controller: meetingNameController,
                                   label: 'اسم الاجتماع',
                                   hint: 'مثال: اجتماع الشباب',
@@ -455,7 +475,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                   },
                                 ),
                                 if (!widget.isServant)
-                                  _buildField(
+                                  ProfileTextField(
                                     controller: bioController,
                                     label: 'نبذة عن الاجتماع (اختياري)',
                                     hint: 'اكتب نبذة قصيرة عن الاجتماع',
@@ -609,7 +629,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     );
   }
 
-  Widget _buildField({
+  Widget ProfileTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -682,176 +702,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
       borderSide: BorderSide(color: color, width: width),
-    );
-  }
-
-  Widget _buildGovernorateDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Text(
-              'المحافظة',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textDarkColor,
-              ),
-            ),
-            Text(
-              ' *',
-              style: TextStyle(color: AppColors.redColor, fontSize: 14),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: selectedGovernorate,
-          isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.primaryColor,
-          ),
-          hint: const Text(
-            'اختر المحافظة',
-            style: TextStyle(color: AppColors.hintColor, fontSize: 13),
-          ),
-          borderRadius: BorderRadius.circular(16),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(
-              Icons.location_on_outlined,
-              color: AppColors.primaryColor,
-              size: 21,
-            ),
-            filled: true,
-            fillColor: AppColors.fieldColor,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            border: _fieldBorder(Colors.transparent),
-            enabledBorder: _fieldBorder(Colors.transparent),
-            focusedBorder: _fieldBorder(AppColors.primaryColor, width: 1.4),
-            errorBorder: _fieldBorder(AppColors.redColor),
-            focusedErrorBorder: _fieldBorder(AppColors.redColor, width: 1.4),
-          ),
-          items: governorates.map((governorate) {
-            return DropdownMenuItem<String>(
-              value: governorate,
-              child: Text(governorate),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() => selectedGovernorate = value);
-          },
-          validator: (value) {
-            if (value == null || value.isEmpty) return 'اختر المحافظة';
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSpecializations() {
-    return FormField<String>(
-      initialValue: selectedSpecialization,
-      validator: (_) {
-        if (selectedSpecialization == null) return 'اختر التخصص';
-        return null;
-      },
-      builder: (field) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Text(
-                  'التخصص',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textDarkColor,
-                  ),
-                ),
-                Text(
-                  ' *',
-                  style: TextStyle(color: AppColors.redColor, fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: specializations.map((item) {
-                final name = item['name'] as String;
-                final isSelected = selectedSpecialization == name;
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => selectedSpecialization = name);
-                    field.didChange(name);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 11,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primaryColor
-                          : AppColors.fieldColor,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.primaryColor
-                            : Colors.transparent,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          item['icon'] as IconData,
-                          size: 18,
-                          color: isSelected
-                              ? AppColors.whiteColor
-                              : AppColors.textGreyColor,
-                        ),
-                        const SizedBox(width: 7),
-                        Text(
-                          name,
-                          style: TextStyle(
-                            color: isSelected
-                                ? AppColors.whiteColor
-                                : AppColors.textDarkColor,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            if (field.hasError)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  field.errorText!,
-                  style: const TextStyle(
-                    color: AppColors.redColor,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
     );
   }
 
@@ -991,57 +841,3 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 // =========================
 // Section Card
 // =========================
-class _SectionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.icon,
-    required this.title,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 20, 18, 4),
-      decoration: BoxDecoration(
-        color: AppColors.whiteColor,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.borderColor),
-        boxShadow: AppColors.softShadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.lightBlueColor,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: AppColors.primaryColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDarkColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          ...children,
-        ],
-      ),
-    );
-  }
-}

@@ -5,11 +5,7 @@ class AvailabilityModel {
   DateTime? date;
   bool isAvailable;
 
-  AvailabilityModel({
-    this.id,
-    this.date,
-    this.isAvailable = true,
-  });
+  AvailabilityModel({this.id, this.date, this.isAvailable = true});
 
   factory AvailabilityModel.fromJson(Map<String, dynamic> json) {
     return AvailabilityModel(
@@ -25,5 +21,14 @@ class AvailabilityModel {
       'date': date != null ? Timestamp.fromDate(date!) : null,
       'isAvailable': isAvailable,
     };
+  }
+
+  String get dateKey {
+    if (date == null) return '';
+
+    final month = date!.month.toString().padLeft(2, '0');
+    final day = date!.day.toString().padLeft(2, '0');
+
+    return '${date!.year}-$month-$day';
   }
 }

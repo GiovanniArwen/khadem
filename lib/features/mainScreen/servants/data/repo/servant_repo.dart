@@ -26,6 +26,15 @@ class ServantRepo {
     });
   }
 
+  Future<void> setAutoAvailability({
+    required String uid,
+    required bool enabled,
+  }) async {
+    await _firestore.collection('users').doc(uid).update({
+      'autoAvailabilityEnabled': enabled,
+    });
+  }
+
   Future<void> updateServant({
     required String uid,
     required ServantModel servant,

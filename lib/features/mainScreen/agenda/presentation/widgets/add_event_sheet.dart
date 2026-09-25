@@ -51,81 +51,107 @@ class _AddEventSheetState extends State<AddEventSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Text(
-                  isEditing ? 'تعديل الموعد' : 'إضافة موعد',
-                  style: TextStyles.title,
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    return SafeArea(
+      top: false,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: keyboardHeight + 20,
+        ),
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
                 ),
-              ),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 15),
 
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'عنوان الموعد',
-                  border: OutlineInputBorder(),
+                Center(
+                  child: Text(
+                    isEditing ? 'تعديل الموعد' : 'إضافة موعد',
+                    style: TextStyles.title,
+                  ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'اكتب عنوان الموعد';
-                  }
 
-                  return null;
-                },
-              ),
+                const SizedBox(height: 20),
 
-              const SizedBox(height: 15),
+                TextFormField(
+                  controller: _titleController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'عنوان الموعد',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'اكتب عنوان الموعد';
+                    }
 
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'الوصف',
-                  border: OutlineInputBorder(),
+                    return null;
+                  },
                 ),
-              ),
 
-              const SizedBox(height: 20),
+                const SizedBox(height: 15),
 
-              _buildDateTimeButton(
-                title: 'وقت البداية',
-                value: _startTime,
-                onTap: () => _pickDateTime(isStart: true),
-              ),
-
-              const SizedBox(height: 12),
-
-              _buildDateTimeButton(
-                title: 'وقت النهاية',
-                value: _endTime,
-                onTap: () => _pickDateTime(isStart: false),
-              ),
-
-              const SizedBox(height: 25),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _saveEvent,
-                  child: Text(isEditing ? 'حفظ التعديلات' : 'إضافة الموعد'),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 3,
+                  textInputAction: TextInputAction.newline,
+                  decoration: const InputDecoration(
+                    labelText: 'الوصف',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 20),
+
+                _buildDateTimeButton(
+                  title: 'وقت البداية',
+                  value: _startTime,
+                  onTap: () => _pickDateTime(isStart: true),
+                ),
+
+                const SizedBox(height: 12),
+
+                _buildDateTimeButton(
+                  title: 'وقت النهاية',
+                  value: _endTime,
+                  onTap: () => _pickDateTime(isStart: false),
+                ),
+
+                const SizedBox(height: 25),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _saveEvent,
+                    child: Text(isEditing ? 'حفظ التعديلات' : 'إضافة الموعد'),
+                  ),
+                ),
+
+                const SizedBox(height: 5),
+              ],
+            ),
           ),
         ),
       ),

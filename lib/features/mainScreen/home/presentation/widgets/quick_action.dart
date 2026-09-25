@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:khadem/features/mainScreen/servants/data/models/servant_model.dart';
 
 class QuickAction extends StatelessWidget {
   const QuickAction({

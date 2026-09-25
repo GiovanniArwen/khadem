@@ -7,8 +7,8 @@ import 'package:khadem/features/auth/data/models/user_type_enum.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_event.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_state.dart';
+import 'package:khadem/features/auth/presentation/widgets/auth_text_field_forlogin.dart';
 import 'package:khadem/features/auth/presentation/widgets/header.dart';
-import 'package:khadem/features/auth/presentation/widgets/social_icon.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,11 +21,84 @@ class _LoginScreenState extends State<LoginScreen> {
   final formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
+  }
+
+  void _showForgotPasswordDialog(BuildContext context) {
+    final forgotEmailController = TextEditingController(
+      text: emailController.text,
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text(
+            'نسيت كلمة المرور؟',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'اكتب البريد الإلكتروني المرتبط بحسابك، وسنرسل لك رابطًا لإعادة تعيين كلمة المرور.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: forgotEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'example@example.com',
+                  filled: true,
+                  fillColor: const Color(0xFFEDF2FF),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final email = forgotEmailController.text.trim();
+
+                if (email.isEmpty) {
+                  showMyDialog(context, 'من فضلك اكتب البريد الإلكتروني');
+                  return;
+                }
+
+                Navigator.pop(dialogContext);
+
+                context.read<AuthBloc>().add(ForgotPasswordEvent(email: email));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2962FF),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('إرسال'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // final bioController = TextEditingController();
@@ -39,10 +112,10 @@ class _LoginScreenState extends State<LoginScreen> {
         if (state is AuthLoadingState) {
           showLoadingDialog(context);
         }
+
         if (state is AuthSuccessState) {
-          // print('LOGIN SUCCESS');
-          // print('isServant: ${state.isServant}');
-          // print('isChurchAdmin: ${state.isChurchAdmin}');
+          Navigator.of(context, rootNavigator: true).maybePop();
+
           pushWithReplacement(
             context,
             Routes.main,
@@ -54,10 +127,27 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
 
-        if (state is AuthErrorState) {
-          Navigator.of(context, rootNavigator: true).pop();
+        if (state is ForgotPasswordSuccessState) {
+          Navigator.of(context, rootNavigator: true).maybePop();
 
-          showMyDialog(context, "اسم المستخدم او كلمة السر يوجدا بهما خطأ");
+          showMyDialog(
+            context,
+            'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.',
+          );
+
+          Future.delayed(const Duration(seconds: 1), () {
+            if (!mounted) return;
+
+            showMyDialog(
+              context,
+              'إذا لم تجد الرابط في البريد الوارد، يرجى التحقق من مجلد Spam أو الرسائل غير المرغوب فيها في Gmail.',
+            );
+          });
+        }
+        if (state is AuthErrorState) {
+          Navigator.of(context, rootNavigator: true).maybePop();
+
+          showMyDialog(context, state.message);
         }
       },
       child: BlocBuilder<AuthBloc, AuthState>(
@@ -77,81 +167,46 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 20),
                           // Top Navigation
                           Header(
-                            title: 'أهلا بيـك في تـطبيـق خـادم',
+                            title: 'أهلا بيـك في تـطبيـق خدمـتي',
                             subtitle:
                                 'لدعوة المرنمين والمتكلمين وفرق التسبيح والدراما للكنيسة المحلية الخاصة بك',
                           ),
                           // Email Input
-                          const Text(
-                            'Email',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
+                          AuthTextField(
+                            label: 'Email',
+                            hintText: 'example@example.com',
                             controller: emailController,
                             keyboardType: TextInputType.emailAddress,
-                            decoration: InputDecoration(
-                              hintText: 'example@example.com',
-                              hintStyle: const TextStyle(
-                                color: Color(0xFF9FA8DA),
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFFEDF2FF),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 18,
-                              ),
-                            ),
                           ),
                           const SizedBox(height: 24),
                           // Password Input
-                          const Text(
-                            'Password',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
+                          AuthTextField(
+                            label: 'Password',
+                            hintText: '****************',
                             controller: passwordController,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              hintText: '**************',
-                              hintStyle: const TextStyle(
-                                color: Color(0xFF9FA8DA),
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFFEDF2FF),
-                              suffixIcon: const Icon(
-                                Icons.visibility_off_outlined,
+                            obscureText: !_isPasswordVisible,
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordVisible = !_isPasswordVisible;
+                                });
+                              },
+                              icon: Icon(
+                                _isPasswordVisible
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
                                 color: Colors.grey,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 18,
                               ),
                             ),
                           ),
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                _showForgotPasswordDialog(context);
+                              },
                               child: const Text(
-                                'Forget Password',
+                                'نسيت كلمة المرور؟',
                                 style: TextStyle(
                                   color: Color(0xFF2962FF),
                                   fontWeight: FontWeight.bold,
@@ -197,51 +252,51 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 30),
                           // Social Login
-                          const Center(
-                            child: Text(
-                              'or sign up with',
-                              style: TextStyle(color: Colors.black45),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SocialIcon(
-                                icon: Icons.g_mobiledata,
-                                bgColor: const Color(0xFFEDF2FF),
-                                iconColor: const Color(0xFF2962FF),
-                              ),
-                              const SizedBox(width: 20),
-                              SocialIcon(
-                                icon: Icons.facebook,
-                                bgColor: const Color(0xFFEDF2FF),
-                                iconColor: const Color.fromARGB(
-                                  255,
-                                  39,
-                                  48,
-                                  73,
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              SocialIcon(
-                                icon: Icons.fingerprint,
-                                bgColor: const Color(0xFFEDF2FF),
-                                iconColor: const Color.fromARGB(
-                                  255,
-                                  39,
-                                  48,
-                                  73,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 40),
+                          // const Center(
+                          //   child: Text(
+                          //     'سجل الدخول بـواسـطة',
+                          //     style: TextStyle(color: Colors.black45),
+                          //   ),
+                          // ),
+                          // const SizedBox(height: 20),
+                          // Row(
+                          //   mainAxisAlignment: MainAxisAlignment.center,
+                          //   children: [
+                          //     SocialIcon(
+                          //       icon: Icons.g_mobiledata,
+                          //       bgColor: const Color(0xFFEDF2FF),
+                          //       iconColor: const Color(0xFF2962FF),
+                          //     ),
+                          //     const SizedBox(width: 20),
+                          //     SocialIcon(
+                          //       icon: Icons.facebook,
+                          //       bgColor: const Color(0xFFEDF2FF),
+                          //       iconColor: const Color.fromARGB(
+                          //         255,
+                          //         39,
+                          //         48,
+                          //         73,
+                          //       ),
+                          //     ),
+                          //     const SizedBox(width: 20),
+                          //     SocialIcon(
+                          //       icon: Icons.fingerprint,
+                          //       bgColor: const Color(0xFFEDF2FF),
+                          //       iconColor: const Color.fromARGB(
+                          //         255,
+                          //         39,
+                          //         48,
+                          //         73,
+                          //       ),
+                          //     ),
+                          //   ],
+                          // ),
+
+                          // const SizedBox(height: 40),
                           // Footer
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text("Don't have an account? "),
                               GestureDetector(
                                 onTap: () {
                                   pushTo(
@@ -251,13 +306,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                   );
                                 },
                                 child: Text(
-                                  'Sign Up',
+                                  'إنشاء حساب',
                                   style: TextStyle(
                                     color: Color(0xFF2962FF),
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
+                              const Text(" ليس لديك حساب قم بـ"),
                             ],
                           ),
                           const SizedBox(height: 20),

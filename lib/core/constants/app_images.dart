@@ -1,5 +1,4 @@
 class AppImages {
-  static const String logo = 'assets/images/logo.png';
   static const String logoSvg = 'assets/images/logo.svg';
   static const String doctorCardSvg = 'assets/images/doctor-card.svg';
   static const String noScheduledSvg = 'assets/images/no_scheduled.svg';
@@ -10,4 +9,5 @@ class AppImages {
   static const String onboarding3Svg = 'assets/images/on3.svg';
   static const String welcome = 'assets/images/welcome-bg.png';
   static const String loadingLottie = 'assets/images/loading.json';
+  
 }

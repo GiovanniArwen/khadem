@@ -1,15 +1,10 @@
-
-
-class AuthEvent {}
+abstract class AuthEvent {}
 
 class LoginEvent extends AuthEvent {
   final String email;
   final String password;
 
-  LoginEvent({
-    required this.email,
-    required this.password,
-  });
+  LoginEvent({required this.email, required this.password});
 }
 
 class SignUpEvent extends AuthEvent {
@@ -27,4 +22,9 @@ class SignUpEvent extends AuthEvent {
     required this.isChurchAdmin,
   });
 }
-class ServantRegistrationEvent extends AuthEvent {}
+
+class ForgotPasswordEvent extends AuthEvent {
+  final String email;
+
+  ForgotPasswordEvent({required this.email});
+}

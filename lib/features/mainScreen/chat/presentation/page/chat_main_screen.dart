@@ -17,7 +17,42 @@ class ChatMainScreen extends StatefulWidget {
 class _ChatMainScreenState extends State<ChatMainScreen> {
   final ChatRepo _chatRepo = ChatRepo();
   final UserProfileRepo _userProfileRepo = UserProfileRepo();
+  final TextEditingController _searchController = TextEditingController();
+
+  // الـ stream بيتعمل مرة واحدة، عشان ميتعملش subscribe جديد مع كل حرف في البحث
+  late final Stream<List<ChatModel>> _chatsStream = _chatRepo.getMyChats();
+
+  // كاش لبيانات المستخدمين عشان منحملهمش تاني مع كل rebuild
+  final Map<String, Future<ChatUserModel?>> _userFutures = {};
+  final Map<String, ChatUserModel> _users = {};
+
   String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<ChatUserModel?> _loadUser(String uid) async {
+    try {
+      final user = await _userProfileRepo.getChatUser(uid);
+      if (user != null) {
+        _users[uid] = user;
+      } else {
+        _userFutures.remove(uid); // نحاول تاني في المرة الجاية
+      }
+      return user;
+    } catch (e, st) {
+      debugPrint('GET CHAT USER ERROR for $uid: $e');
+      debugPrint('$st');
+      _userFutures.remove(uid);
+      return null;
+    }
+  }
+
+  Future<ChatUserModel?> _userFuture(String uid) =>
+      _userFutures.putIfAbsent(uid, () => _loadUser(uid));
 
   String _formatTime(DateTime? dateTime) {
     if (dateTime == null) return '';
@@ -41,6 +76,49 @@ class _ChatMainScreenState extends State<ChatMainScreen> {
     return '$hour:$minute ${isPm ? 'م' : 'ص'}';
   }
 
+  Widget _buildSearchField() {
+    OutlineInputBorder border(Color color, double width) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: color, width: width),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (value) => setState(() => _query = value.trim()),
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'ابحث في المحادثات...',
+          hintStyle: const TextStyle(color: AppColors.greyColor, fontSize: 14),
+          filled: true,
+          fillColor: const Color(0xFFF3F4F8),
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: AppColors.primaryColor,
+          ),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.greyColor,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                ),
+          border: border(Colors.transparent, 0),
+          enabledBorder: border(Colors.transparent, 0),
+          focusedBorder: border(AppColors.primaryColor, 1.2),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
@@ -59,27 +137,11 @@ class _ChatMainScreenState extends State<ChatMainScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-            child: TextField(
-              onChanged: (value) => setState(() => _query = value.trim()),
-              decoration: InputDecoration(
-                hintText: 'ابحث في المحادثات...',
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.primaryColor,
-                ),
-              ),
-            ),
-          ),
-
+          _buildSearchField(),
           Expanded(
             child: StreamBuilder<List<ChatModel>>(
-              stream: _chatRepo.getMyChats(),
+              stream: _chatsStream,
               builder: (context, snapshot) {
-                print('CHAT STREAM STATE: ${snapshot.connectionState}');
-                print('CHAT STREAM DATA COUNT: ${snapshot.data?.length}');
-                print('CHAT STREAM ERROR: ${snapshot.error}');
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(
@@ -89,57 +151,62 @@ class _ChatMainScreenState extends State<ChatMainScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('حدث خطأ: ${snapshot.error}'));
+                  return _StateMessage(
+                    icon: Icons.error_outline_rounded,
+                    title: 'حدث خطأ',
+                    subtitle: '${snapshot.error}',
+                  );
                 }
 
                 final chats = snapshot.data ?? [];
 
                 if (chats.isEmpty) {
-                  return const Center(child: Text('لا توجد محادثات بعد'));
+                  return const _StateMessage(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'لا توجد محادثات بعد',
+                    subtitle: 'ابدأ محادثة جديدة وهتظهر هنا',
+                  );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   itemCount: chats.length,
                   itemBuilder: (context, index) {
                     final chat = chats[index];
-                    print(
-                      'CHAT #$index participants: ${chat.participants}, lastMessage: ${chat.lastMessage}',
-                    );
                     final otherUid = chat.participants.firstWhere(
                       (id) => id != currentUid,
                       orElse: () => '',
                     );
-                    print('OTHER UID: $otherUid (currentUid: $currentUid)');
 
-                    if (otherUid.isEmpty) return const SizedBox();
+                    if (otherUid.isEmpty) return const SizedBox.shrink();
 
                     return FutureBuilder<ChatUserModel?>(
-                      future: () async {
-                        try {
-                          return _userProfileRepo.getChatUser(otherUid);
-                        } catch (e, st) {
-                          print('GET CHAT USER ERROR for $otherUid: $e');
-                          print(st);
-                          return null;
-                        }
-                      }(),
+                      future: _userFuture(otherUid),
+                      initialData: _users[otherUid],
                       builder: (context, userSnapshot) {
-                        if (!userSnapshot.hasData) return const SizedBox();
+                        final user = userSnapshot.data;
 
-                        final user = userSnapshot.data!;
+                        if (user == null) {
+                          final loading =
+                              userSnapshot.connectionState !=
+                              ConnectionState.done;
+                          return loading && _query.isEmpty
+                              ? const ChatTileSkeleton()
+                              : const SizedBox.shrink();
+                        }
 
                         if (_query.isNotEmpty && !user.name.contains(_query)) {
-                          return const SizedBox();
+                          return const SizedBox.shrink();
                         }
 
                         return ChatTile(
                           uid: otherUid,
                           name: user.name,
                           role: user.roleText,
+                          image: user.image,
+                          governorate: user.governorate,
+                          specialization: user.specialization,
+                          unreadCount: chat.unreadFor(currentUid),
                           message: chat.lastMessage,
                           time: _formatTime(chat.updatedAt),
                         );
@@ -151,6 +218,58 @@ class _ChatMainScreenState extends State<ChatMainScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StateMessage extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+
+  const _StateMessage({required this.icon, required this.title, this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: const BoxDecoration(
+                color: AppColors.secondaryColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 38, color: AppColors.primaryColor),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkColor,
+              ),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  height: 1.4,
+                  color: AppColors.greyColor,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

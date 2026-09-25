@@ -18,14 +18,11 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   // void initState() {
   //   super.initState();
-
   //   Future.delayed(const Duration(seconds: 1), () {
   //     if (!mounted) return;
-
   //     pushWithReplacement(context, Routes.login);
   //   });
   // }
-
   void initState() {
     super.initState();
     _checkLogin();
@@ -34,16 +31,19 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkLogin() async {
     await Future.delayed(const Duration(seconds: 1));
 
-        final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance.currentUser;
 
     if (!mounted) return;
 
-     if (user == null) {
-       pushWithReplacement(context, Routes.login);
-       return;
-     }
+    if (user == null) {
+      pushWithReplacement(
+        context,
+        Routes.onboarding,
+      ); // بدل Routes.login مباشرة
+      return;
+    }
 
-     final result = await AuthRepo.getCurrentUserRoles();
+    final result = await AuthRepo.getCurrentUserRoles();
 
     if (!mounted) return;
     result.fold(

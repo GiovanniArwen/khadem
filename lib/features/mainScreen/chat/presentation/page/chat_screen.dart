@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:khadem/core/routes/navigation.dart';
 import 'package:khadem/core/routes/routes.dart';
+import 'package:khadem/core/services/notification_service.dart';
 import 'package:khadem/core/utils/colors.dart';
 import 'package:khadem/features/mainScreen/chat/data/models/message_model.dart';
+import 'package:khadem/features/mainScreen/chat/data/repo/chat_read_service.dart';
 import 'package:khadem/features/mainScreen/chat/presentation/bloc/chat_bloc.dart';
 import 'package:khadem/features/mainScreen/chat/presentation/bloc/chat_event.dart';
 import 'package:khadem/features/mainScreen/chat/presentation/bloc/chat_state.dart';
+import 'package:khadem/features/mainScreen/chat/presentation/widgets/date_separator.dart';
 import 'package:khadem/features/mainScreen/chat/presentation/widgets/message_bubble.dart';
 import 'package:khadem/features/mainScreen/chat/presentation/widgets/message_input.dart';
+import 'package:khadem/features/mainScreen/chat/presentation/widgets/user_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
   final String name;
@@ -33,6 +37,9 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
 
+    // عشان منظهرش إشعار لرسالة جاية من الشخص اللي محادثته مفتوحة
+    NotificationService.instance.activeChatUid = widget.uid;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -41,11 +48,21 @@ class _ChatScreenState extends State<ChatScreen> {
       bloc.add(LoadChatUserEvent(userId: widget.uid));
 
       bloc.add(LoadMessagesEvent(otherUserId: widget.uid));
+
+      // فتحت المحادثة = كل الرسايل اتقرت
+      ChatReadService.instance.markAsRead(widget.uid);
     });
   }
 
   @override
   void dispose() {
+    if (NotificationService.instance.activeChatUid == widget.uid) {
+      NotificationService.instance.activeChatUid = null;
+    }
+
+    // خروج من المحادثة: نصفّر العداد تاني (لو رسالة وصلت وأنا جواها)
+    ChatReadService.instance.markAsRead(widget.uid);
+
     _scrollController.dispose();
     super.dispose();
   }
@@ -62,22 +79,21 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  String _formatTime(DateTime? dateTime) {
-    if (dateTime == null) return '';
+  /// لو أحدث رسالة جاية من الطرف التاني وأنا فاتح المحادثة، نصفّر العداد
+  void _markReadIfNeeded(BuildContext context, List<MessageModel> messages) {
+    if (messages.isEmpty) return;
 
-    int hour = dateTime.hour;
+    final newest = messages.reduce((a, b) {
+      final da = a.createdAt ?? DateTime.now();
+      final db = b.createdAt ?? DateTime.now();
+      return da.isAfter(db) ? a : b;
+    });
 
-    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final currentUid = context.read<ChatBloc>().chatRepo.currentUid;
 
-    final isPm = hour >= 12;
-
-    hour = hour % 12;
-
-    if (hour == 0) {
-      hour = 12;
+    if (newest.senderId != currentUid) {
+      ChatReadService.instance.markAsRead(widget.uid);
     }
-
-    return '$hour:$minute ${isPm ? 'م' : 'ص'}';
   }
 
   @override
@@ -108,6 +124,12 @@ class _ChatScreenState extends State<ChatScreen> {
               specialization = user.specialization;
             }
 
+            final subtitle = _buildSubtitle(
+              role: role,
+              governorate: governorate,
+              specialization: specialization,
+            );
+
             return Row(
               children: [
                 GestureDetector(
@@ -120,54 +142,44 @@ class _ChatScreenState extends State<ChatScreen> {
                       );
                     }
                   },
-                  child: CircleAvatar(
-                    radius: 21,
-                    backgroundColor: AppColors.secondaryColor,
-                    backgroundImage: image != null && image.isNotEmpty
-                        ? NetworkImage(image)
-                        : null,
-                    child: image == null || image.isEmpty
-                        ? const Icon(
-                            Icons.person_rounded,
-                            color: AppColors.primaryColor,
-                            size: 24,
-                          )
-                        : null,
+                  child: UserAvatar(
+                    name: name,
+                    image: image,
+                    size: 46,
+                    ringColor: AppColors.whiteColor.withOpacity(0.85),
                   ),
                 ),
 
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
 
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 15,
+                          fontSize: 16.5,
                           fontWeight: FontWeight.bold,
                           color: AppColors.whiteColor,
                         ),
                       ),
 
-                      const SizedBox(height: 2),
-
-                      Text(
-                        _buildSubtitle(
-                          role: role,
-                          governorate: governorate,
-                          specialization: specialization,
+                      if (subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.secondaryColor,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.secondaryColor,
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -193,6 +205,7 @@ class _ChatScreenState extends State<ChatScreen> {
               listener: (context, state) {
                 if (state is MessagesLoaded) {
                   _scrollToBottom();
+                  _markReadIfNeeded(context, state.messages);
                 }
 
                 if (state is ChatError) {
@@ -220,32 +233,43 @@ class _ChatScreenState extends State<ChatScreen> {
                   final messages = state.messages;
 
                   if (messages.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        'ابدأ المحادثة 👋',
-                        style: TextStyle(color: AppColors.greyColor),
-                      ),
-                    );
+                    return _EmptyChat(name: widget.name);
                   }
+
+                  final currentUid = context
+                      .read<ChatBloc>()
+                      .chatRepo
+                      .currentUid;
 
                   return ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 20,
-                    ),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final MessageModel message = messages[index];
 
-                      final isMe =
-                          message.senderId ==
-                          context.read<ChatBloc>().chatRepo.currentUid;
+                      final date = message.createdAt ?? DateTime.now();
 
-                      return MessageBubble(
-                        message: message.text,
-                        time: _formatTime(message.createdAt),
-                        isMe: isMe,
+                      // الرسالة السابقة في الترتيب الطبيعي:
+                      // الأقدم → الأحدث
+                      final previousDate = index > 0
+                          ? (messages[index - 1].createdAt ?? DateTime.now())
+                          : null;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (ChatDateUtils.startsNewDay(date, previousDate))
+                            DateSeparator(date: date),
+
+                          MessageBubble(
+                            message: message.text,
+                            time: ChatDateUtils.time(date),
+                            isMe: message.senderId == currentUid,
+                          ),
+                        ],
                       );
                     },
                   );
@@ -282,5 +306,41 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return '$role • ${parts.join(' • ')}';
+  }
+}
+
+class _EmptyChat extends StatelessWidget {
+  final String name;
+
+  const _EmptyChat({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            UserAvatar(name: name, size: 84),
+            const SizedBox(height: 16),
+            Text(
+              'ابدأ المحادثة مع $name',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkColor,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'ابعت أول رسالة وهتظهر هنا',
+              style: TextStyle(fontSize: 13.5, color: AppColors.greyColor),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -116,9 +116,12 @@ class _AgendaScreenState extends State<AgendaScreen> {
       backgroundColor: AppColors.accentColor,
 
       appBar: AppBar(
-        title: Text('النوتة', style: TextStyles.title),
+        title: Text(
+          'النوتة',
+          style: TextStyles.title.copyWith(color: AppColors.accentColor),
+        ),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primaryColor,
         elevation: 0,
       ),
 
@@ -202,23 +205,25 @@ class _AgendaScreenState extends State<AgendaScreen> {
   void _showEventDialog({AgendaEventModel? event}) {
     final agendaBloc = context.read<AgendaBloc>();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (_) => BlocProvider.value(
-        value: agendaBloc,
-        child: Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
+
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return BlocProvider.value(
+          value: agendaBloc,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
             child: AddEventSheet(uid: widget.uid, event: event),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
-
   // =========================================================
   // Calendar
   // =========================================================
@@ -230,94 +235,110 @@ class _AgendaScreenState extends State<AgendaScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: TableCalendar(
-        locale: 'ar',
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: TableCalendar(
+          locale: 'ar',
 
-        firstDay: DateTime.utc(2020, 1, 1),
+          firstDay: DateTime.utc(2020, 1, 1),
 
-        lastDay: DateTime.utc(2035, 12, 31),
+          lastDay: DateTime.utc(2035, 12, 31),
 
-        focusedDay: _focusedDay,
+          focusedDay: _focusedDay,
 
-        selectedDayPredicate: (day) {
-          return isSameDay(_selectedDay, day);
-        },
+          selectedDayPredicate: (day) {
+            return isSameDay(_selectedDay, day);
+          },
 
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _selectedDay = selectedDay;
+          onDaySelected: (selectedDay, focusedDay) {
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+          },
+
+          onPageChanged: (focusedDay) {
             _focusedDay = focusedDay;
-          });
-        },
+          },
 
-        onPageChanged: (focusedDay) {
-          _focusedDay = focusedDay;
-        },
+          calendarFormat: CalendarFormat.month,
 
-        calendarFormat: CalendarFormat.month,
+          availableCalendarFormats: const {CalendarFormat.month: 'شهر'},
 
-        availableCalendarFormats: const {CalendarFormat.month: 'شهر'},
-
-        headerStyle: const HeaderStyle(
-          formatButtonVisible: false,
-          titleCentered: true,
-        ),
-
-        calendarStyle: CalendarStyle(
-          todayDecoration: BoxDecoration(
-            color: AppColors.primaryColor.withOpacity(.25),
-            shape: BoxShape.circle,
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
           ),
 
-          selectedDecoration: const BoxDecoration(
-            color: AppColors.primaryColor,
-            shape: BoxShape.circle,
+          daysOfWeekHeight: 32,
+
+          daysOfWeekStyle: DaysOfWeekStyle(
+            weekdayStyle: TextStyles.body.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+            weekendStyle: TextStyles.body.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
           ),
 
-          markerDecoration: const BoxDecoration(
-            color: AppColors.primaryColor,
-            shape: BoxShape.circle,
+          calendarStyle: CalendarStyle(
+            todayDecoration: BoxDecoration(
+              color: AppColors.primaryColor.withOpacity(.25),
+              shape: BoxShape.circle,
+            ),
+
+            selectedDecoration: const BoxDecoration(
+              color: AppColors.primaryColor,
+              shape: BoxShape.circle,
+            ),
+
+            markerDecoration: const BoxDecoration(
+              color: AppColors.hintColor,
+              shape: BoxShape.circle,
+            ),
           ),
-        ),
 
-        // ===================================================
-        // Event markers
-        // ===================================================
-        eventLoader: (day) {
-          return _eventsForDay(state.events, day);
-        },
+          // ===================================================
+          // Event markers
+          // ===================================================
+          eventLoader: (day) {
+            return _eventsForDay(state.events, day);
+          },
 
-        calendarBuilders: CalendarBuilders(
-          defaultBuilder: (context, day, focusedDay) {
-            if (!_hasAvailability(state, day)) {
-              return null;
-            }
+          calendarBuilders: CalendarBuilders(
+            defaultBuilder: (context, day, focusedDay) {
+              if (!_hasAvailability(state, day)) {
+                return null;
+              }
 
-            final available = _isAvailable(state, day);
+              final available = _isAvailable(state, day);
 
-            return Center(
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: available
-                      ? Colors.green.withOpacity(.18)
-                      : Colors.red.withOpacity(.18),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${day.day}',
-                  style: TextStyles.body.copyWith(
+              return Center(
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
                     color: available
-                        ? Colors.green.shade700
-                        : Colors.red.shade700,
-                    fontWeight: FontWeight.bold,
+                        ? Colors.green.withOpacity(.18)
+                        : Colors.red.withOpacity(.18),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '${day.day}',
+                    style: TextStyles.body.copyWith(
+                      color: available
+                          ? Colors.green.shade700
+                          : Colors.red.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

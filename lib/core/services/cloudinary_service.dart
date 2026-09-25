@@ -12,6 +12,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -28,9 +29,7 @@ class ProfileImageService {
   static final ImagePicker _picker = ImagePicker();
 
   /// اختيار صورة من المعرض أو الكاميرا مع ضغطها قبل الرفع
-  static Future<File?> pickImage({
-    required ImageSource source,
-  }) async {
+  static Future<File?> pickImage({required ImageSource source}) async {
     final XFile? picked = await _picker.pickImage(
       source: source,
       imageQuality: 70,
@@ -44,6 +43,7 @@ class ProfileImageService {
   }
 
   /// رفع الصورة على Cloudinary ورجوع رابط الصورة (secure_url)
+  /// رفع الصورة على Cloudinary ورجوع رابط الصورة الجديد
   static Future<String> uploadProfileImage({
     required String uid,
     required File file,
@@ -52,13 +52,17 @@ class ProfileImageService {
       'https://api.cloudinary.com/v1_1/$_cloudName/image/upload',
     );
 
+    final uniquePublicId = '${uid}_${DateTime.now().millisecondsSinceEpoch}';
+
     final request = http.MultipartRequest('POST', url)
       ..fields['upload_preset'] = _uploadPreset
-      ..fields['public_id'] = uid // بيستبدل نفس الصورة لو المستخدم غيّرها
+      ..fields['public_id'] = uniquePublicId
       ..files.add(await http.MultipartFile.fromPath('file', file.path));
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
+
+    debugPrint('Cloudinary response: ${response.body}');
 
     if (response.statusCode != 200) {
       throw Exception(
@@ -67,7 +71,18 @@ class ProfileImageService {
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
-    return data['secure_url'] as String;
+
+    final secureUrl = data['secure_url'] as String?;
+
+    if (secureUrl == null || secureUrl.isEmpty) {
+      throw Exception('Cloudinary لم يرجع رابط الصورة');
+    }
+
+    debugPrint('Cloudinary secure_url: $secureUrl');
+    debugPrint('Cloudinary public_id: ${data['public_id']}');
+    debugPrint('Cloudinary version: ${data['version']}');
+
+    return secureUrl;
   }
 
   /// بديل احتياطي: تخزين الصورة نفسها كـ base64 جوه Firestore

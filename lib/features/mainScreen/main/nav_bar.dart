@@ -6,6 +6,7 @@ import 'package:khadem/core/utils/text_styles.dart';
 import 'package:khadem/features/mainScreen/agenda/data/repo/agenda_repo.dart';
 import 'package:khadem/features/mainScreen/agenda/presentation/bloc/agenda_bloc.dart';
 import 'package:khadem/features/mainScreen/agenda/presentation/pages/agenda_screen.dart';
+import 'package:khadem/features/mainScreen/chat/data/repo/chat_repo.dart';
 import 'package:khadem/features/mainScreen/chat/presentation/page/chat_main_screen.dart';
 import 'package:khadem/features/mainScreen/home/presentation/page/home_screen.dart';
 import 'package:khadem/features/mainScreen/profile/page/profile_screen.dart';
@@ -29,20 +30,23 @@ class MainAppScreen extends StatefulWidget {
 class _MainPageState extends State<MainAppScreen> {
   int _selectedIndex = 0;
   late final List<Widget> _pages;
+  final ChatRepo _chatRepo = ChatRepo();
 
+  late final Stream<int> _totalUnreadStream;
   @override
   void initState() {
     super.initState();
+    _totalUnreadStream = _chatRepo.getTotalUnreadCount();
 
-    print('================ MAIN APP ================');
-    print('MAIN UID: "${widget.uid}"');
-    print('===========================================');
+    // print('================ MAIN APP ================');
+    // print('MAIN UID: "${widget.uid}"');
+    // print('===========================================');
 
-    print('================ MAIN APP ================');
-    print('MAIN UID: "${widget.uid}"');
-    print('isServant: ${widget.isServant}');
-    print('isChurchAdmin: ${widget.isChurchAdmin}');
-    print('===========================================');
+    // print('================ MAIN APP ================');
+    // print('MAIN UID: "${widget.uid}"');
+    // print('isServant: ${widget.isServant}');
+    // print('isChurchAdmin: ${widget.isChurchAdmin}');
+    // print('===========================================');
 
     _pages = [
       // 0 - Home
@@ -71,7 +75,7 @@ class _MainPageState extends State<MainAppScreen> {
     ];
   }
 
-  List<GButton> _buildTabs() {
+  List<GButton> _buildTabs(int unreadCount) {
     return [
       // 0
       const GButton(iconSize: 24, icon: Icons.home, text: 'الرئيسية'),
@@ -95,7 +99,12 @@ class _MainPageState extends State<MainAppScreen> {
         ),
 
       // 3
-      const GButton(iconSize: 24, icon: Icons.chat, text: 'المحادثات'),
+      GButton(
+        iconSize: 24,
+        icon: Icons.chat,
+        leading: ChatNavIcon(count: unreadCount),
+        text: 'المحادثات',
+      ),
 
       // 4
       const GButton(iconSize: 24, icon: Icons.person, text: 'الحساب'),
@@ -104,51 +113,98 @@ class _MainPageState extends State<MainAppScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+    return StreamBuilder<int>(
+      stream: _totalUnreadStream,
+      initialData: 0,
+      builder: (context, unreadSnapshot) {
+        final unreadCount = unreadSnapshot.data ?? 0;
+
+        return Scaffold(
+          body: _pages[_selectedIndex],
+
+          bottomNavigationBar: Container(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(blurRadius: 20, color: Colors.black.withOpacity(.2)),
+              ],
+            ),
+
+            child: GNav(
+              curve: Curves.easeOutExpo,
+              rippleColor: Colors.grey,
+              hoverColor: Colors.grey,
+              haptic: true,
+              tabBorderRadius: 20,
+              gap: 3,
+              activeColor: Colors.white,
+
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+
+              duration: const Duration(milliseconds: 400),
+
+              tabBackgroundColor: AppColors.primaryColor,
+
+              textStyle: TextStyles.body.copyWith(color: AppColors.whiteColor),
+
+              tabs: _buildTabs(unreadCount),
+
+              selectedIndex: _selectedIndex,
+
+              onTabChange: (value) {
+                setState(() {
+                  _selectedIndex = value;
+                });
+              },
+            ),
           ),
-          boxShadow: [
-            BoxShadow(blurRadius: 20, color: Colors.black.withOpacity(.2)),
-          ],
-        ),
-        child: GNav(
-          curve: Curves.easeOutExpo,
-          rippleColor: Colors.grey,
-          hoverColor: Colors.grey,
-          haptic: true,
-          tabBorderRadius: 20,
+        );
+      },
+    );
+  }
+}
 
-          // قلل المسافة بين الـ tabs
-          gap: 3,
+class ChatNavIcon extends StatelessWidget {
+  final int count;
 
-          activeColor: Colors.white,
+  const ChatNavIcon({super.key, required this.count});
 
-          // كان 20 أفقي، خليه 8
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        const Icon(Icons.chat, size: 24),
 
-          duration: const Duration(milliseconds: 400),
-          tabBackgroundColor: AppColors.primaryColor,
-
-          textStyle: TextStyles.body.copyWith(color: AppColors.whiteColor),
-
-          tabs: _buildTabs(),
-
-          selectedIndex: _selectedIndex,
-
-          onTabChange: (value) {
-            setState(() {
-              _selectedIndex = value;
-            });
-          },
-        ),
-      ),
+        if (count > 0)
+          Positioned(
+            right: -9,
+            top: -9,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: Text(
+                count > 99 ? '99+' : '$count',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -1,10 +1,8 @@
 // import 'package:flutter/material.dart';
-// import 'package:gap/gap.dart';
-// import 'package:se7ety/core/routes/navigation.dart';
-// import 'package:se7ety/core/routes/routes.dart';
-// import 'package:se7ety/core/utils/colors.dart';
-// import 'package:se7ety/core/utils/text_styles.dart';
-// import 'package:se7ety/features/auth/data/models/user_type_enum.dart';
+// import 'package:khadem/core/routes/navigation.dart';
+// import 'package:khadem/core/routes/routes.dart';
+// import 'package:khadem/core/utils/colors.dart';
+// import 'package:khadem/core/utils/text_styles.dart';
 
 // class WelcomeScreen extends StatelessWidget {
 //   const WelcomeScreen({super.key});
@@ -31,7 +29,7 @@
 //                   'اهلا بيك',
 //                   style: TextStyles.title.copyWith(fontSize: 38),
 //                 ),
-//                 const Gap(15),
+//                 const SizedBox(height: 15,),
 //                 Text(
 //                   'سجل واحجز عند دكتورك وانت فالبيت',
 //                   style: TextStyles.body,
@@ -68,7 +66,7 @@
 //                   _buildUserButton(
 //                     title: 'دكتور',
 //                     onTap: () {
-//                       pushTo(context, Routes.login, extra: UserTypeEnum.doctor);
+//                       pushTo(context, Routes.login);
 //                     },
 //                   ),
 //                   const SizedBox(height: 15),
@@ -78,7 +76,6 @@
 //                       pushTo(
 //                         context,
 //                         Routes.login,
-//                         extra: UserTypeEnum.patient,
 //                       );
 //                     },
 //                   ),

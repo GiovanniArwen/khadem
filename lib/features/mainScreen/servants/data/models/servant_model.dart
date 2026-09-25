@@ -15,8 +15,9 @@ class ServantModel {
   String? governorate;
   String? age;
 
-  // الخادم بيتحكم فيها بإيده من البروفايل
-bool isNoteVisible = true;
+  // الخادم بيتحكم فيهم بإيده من شاشة الحساب، والديفولت مقفول
+  bool isNoteVisible = false;
+  bool autoAvailabilityEnabled = false;
 
   ServantModel({
     this.name,
@@ -33,7 +34,8 @@ bool isNoteVisible = true;
     this.church,
     this.governorate,
     this.age,
-    this.isNoteVisible = true,
+    this.isNoteVisible = false,
+    this.autoAvailabilityEnabled = false,
   });
 
   ServantModel.fromJson(Map<String, dynamic> json) {
@@ -51,7 +53,8 @@ bool isNoteVisible = true;
     church = json['church'];
     governorate = json['governorate'];
     age = json['age'];
-    isNoteVisible = json['isNoteVisible'] ?? true;
+    isNoteVisible = json['isNoteVisible'] ?? false;
+    autoAvailabilityEnabled = json['autoAvailabilityEnabled'] ?? false;
   }
 
   Map<String, dynamic> toJson() {
@@ -71,6 +74,7 @@ bool isNoteVisible = true;
       'governorate': governorate,
       'age': age,
       'isNoteVisible': isNoteVisible,
+      'autoAvailabilityEnabled': autoAvailabilityEnabled,
     };
   }
 
@@ -91,6 +95,7 @@ bool isNoteVisible = true;
     if (governorate != null) data['governorate'] = governorate;
     if (age != null) data['age'] = age;
     data['isNoteVisible'] = isNoteVisible;
+    data['autoAvailabilityEnabled'] = autoAvailabilityEnabled;
 
     return data;
   }

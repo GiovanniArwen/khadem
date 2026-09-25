@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
+
 import 'package:khadem/core/routes/navigation.dart';
 import 'package:khadem/core/routes/routes.dart';
 import 'package:khadem/features/mainScreen/agenda/data/repo/agenda_repo.dart';
@@ -55,16 +56,19 @@ class ServantDetailsScreen extends StatelessWidget {
               title: 'المحافظة',
               value: servant.governorate,
             ),
+
             _InfoTile(
               icon: Icons.church_outlined,
               title: 'الكنيسة',
               value: servant.church,
             ),
+
             _InfoTile(
               icon: Icons.home_outlined,
               title: 'العنوان',
               value: servant.address,
             ),
+
             _InfoTile(
               icon: Icons.info_outline,
               title: 'نبذة',
@@ -73,11 +77,16 @@ class ServantDetailsScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // ============== النوتة (حسب إذن الخادم) ==============
+            // =========================
+            // Availability / Agenda Note
+            // =========================
             if (servant.uid != null) _buildAgendaSection(),
 
             const SizedBox(height: 20),
 
+            // =========================
+            // Actions
+            // =========================
             Row(
               children: [
                 Expanded(
@@ -97,11 +106,13 @@ class ServantDetailsScreen extends StatelessWidget {
                     label: const Text('محادثة'),
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: منطق الدعوة (يمكن يبقى إرسال رسالة agenda event مقترح)
+                      // TODO: الدعوة
                     },
                     icon: const Icon(Icons.event_outlined),
                     label: const Text('دعوة'),
@@ -116,109 +127,301 @@ class ServantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildAgendaSection() {
+    // الخادم أخفى النوتة
     if (!servant.isNoteVisible) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: const [
-            Icon(Icons.visibility_off_outlined, color: Colors.grey),
-            SizedBox(width: 10),
-            Expanded(child: Text('هذا الخادم أخفى نوتته عن المسؤولين')),
-          ],
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     return BlocProvider(
       create: (_) =>
           AgendaBloc(agendaRepo: AgendaRepo())..add(LoadAgenda(servant.uid!)),
-      child: BlocBuilder<AgendaBloc, AgendaState>(
-        builder: (context, state) {
-          if (state is AgendaLoading) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          if (state is! AgendaLoaded) return const SizedBox();
-
-          final today = DateTime.now();
-          final days = List.generate(
-            7,
-            (i) => DateTime(today.year, today.month, today.day + i),
-          );
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  'نوتة التوفر',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 10),
-              ...days.map((day) {
-                final match = state.availability
-                    .where((a) => a.date != null && isSameDay(a.date!, day))
-                    .toList();
-
-                final hasStatus = match.isNotEmpty;
-                final available = hasStatus && match.first.isAvailable;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: !hasStatus
-                        ? Colors.grey.withOpacity(.08)
-                        : available
-                        ? Colors.green.withOpacity(.10)
-                        : Colors.red.withOpacity(.10),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Text('${day.day}/${day.month}'),
-                      const Spacer(),
-                      Text(
-                        !hasStatus
-                            ? 'غير محدد'
-                            : available
-                            ? 'متاح'
-                            : 'غير متاح',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: !hasStatus
-                              ? Colors.grey
-                              : available
-                              ? Colors.green.shade700
-                              : Colors.red.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              const SizedBox(height: 10),
-            ],
-          );
-        },
-      ),
+      child: const _ServantAvailabilityCalendar(),
     );
   }
 }
+
+// =====================================================
+// Calendar
+// =====================================================
+
+class _ServantAvailabilityCalendar extends StatefulWidget {
+  const _ServantAvailabilityCalendar();
+
+  @override
+  State<_ServantAvailabilityCalendar> createState() =>
+      _ServantAvailabilityCalendarState();
+}
+
+class _ServantAvailabilityCalendarState
+    extends State<_ServantAvailabilityCalendar> {
+  DateTime _focusedDay = DateTime.now();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AgendaBloc, AgendaState>(
+      builder: (context, state) {
+        if (state is AgendaLoading) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 30),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (state is AgendaError) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red.withOpacity(.08),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              'حدث خطأ أثناء تحميل مواعيد الخادم',
+              style: TextStyle(color: Colors.red.shade700),
+            ),
+          );
+        }
+
+        if (state is! AgendaLoaded) {
+          return const SizedBox.shrink();
+        }
+
+        return _buildCalendar(context, state);
+      },
+    );
+  }
+
+  Widget _buildCalendar(BuildContext context, AgendaLoaded state) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'نوتة التوفر',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            'اضغط على الأسهم للتنقل بين الشهور',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+
+          const SizedBox(height: 15),
+
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: TableCalendar(
+                locale: 'ar',
+                firstDay: DateTime(
+                  DateTime.now().year,
+                  DateTime.now().month - 12,
+                ),
+                lastDay: DateTime(DateTime.now().year + 5, 12, 31),
+                focusedDay: _focusedDay,
+
+                startingDayOfWeek: StartingDayOfWeek.sunday,
+
+                headerStyle: const HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                  leftChevronIcon: Icon(Icons.chevron_left),
+                  rightChevronIcon: Icon(Icons.chevron_right),
+                ),
+
+                calendarStyle: const CalendarStyle(
+                  outsideDaysVisible: false,
+                  isTodayHighlighted: false,
+                  cellMargin: EdgeInsets.symmetric(horizontal: 1, vertical: 3),
+                ),
+
+                daysOfWeekStyle: DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
+                  weekendStyle: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+
+                onPageChanged: (focusedDay) {
+                  setState(() {
+                    _focusedDay = focusedDay;
+                  });
+                },
+
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    return _buildDay(context, day, state);
+                  },
+
+                  todayBuilder: (context, day, focusedDay) {
+                    return _buildDay(context, day, state, isToday: true);
+                  },
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          _buildLegend(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDay(
+    BuildContext context,
+    DateTime day,
+    AgendaLoaded state, {
+    bool isToday = false,
+  }) {
+    final status = _getDayStatus(day, state);
+
+    Color backgroundColor;
+    Color textColor;
+
+    switch (status) {
+      case _DayStatus.available:
+        backgroundColor = Colors.green.withOpacity(.15);
+        textColor = Colors.green.shade700;
+        break;
+
+      case _DayStatus.unavailable:
+        backgroundColor = Colors.red.withOpacity(.15);
+        textColor = Colors.red.shade700;
+        break;
+
+      case _DayStatus.none:
+        backgroundColor = Colors.grey.withOpacity(.06);
+        textColor = Colors.grey.shade700;
+        break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        shape: BoxShape.circle,
+        border: isToday
+            ? Border.all(color: Theme.of(context).primaryColor, width: 2)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        '${day.day}',
+        style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  _DayStatus _getDayStatus(DateTime day, AgendaLoaded state) {
+    // ==========================================
+    // 1. مواعيد اليوم
+    // ==========================================
+
+    final dayEvents = state.events.where((event) {
+      if (event.startTime == null) {
+        return false;
+      }
+
+      return isSameDay(event.startTime!, day);
+    }).toList();
+
+    // ==========================================
+    // 2. Availability اليدوي
+    // ==========================================
+
+    final availability = state.availability.where((item) {
+      if (item.date == null) {
+        return false;
+      }
+
+      return isSameDay(item.date!, day);
+    }).toList();
+
+    // ==========================================
+    // 3. 3 مواعيد أو أكثر = غير متاح
+    // ==========================================
+
+    if (dayEvents.length >= 3) {
+      return _DayStatus.unavailable;
+    }
+
+    // ==========================================
+    // 4. لو الخادم حدد اليوم يدويًا
+    // ==========================================
+
+    if (availability.isNotEmpty) {
+      final item = availability.first;
+
+      if (item.isAvailable) {
+        return _DayStatus.available;
+      }
+
+      return _DayStatus.unavailable;
+    }
+
+    // ==========================================
+    // 5. عنده مواعيد ولكن أقل من 3
+    // ==========================================
+
+    if (dayEvents.isNotEmpty) {
+      return _DayStatus.unavailable;
+    }
+
+    // ==========================================
+    // 6. لا توجد بيانات
+    // ==========================================
+
+    return _DayStatus.none;
+  }
+
+  Widget _buildLegend() {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
+      children: [
+        _legendItem(color: Colors.green, text: 'متاح'),
+        _legendItem(color: Colors.red, text: 'غير متاح'),
+        _legendItem(color: Colors.grey, text: 'لا توجد بيانات'),
+      ],
+    );
+  }
+
+  Widget _legendItem({required Color color, required String text}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(text, style: const TextStyle(fontSize: 11)),
+      ],
+    );
+  }
+}
+
+enum _DayStatus { available, unavailable, none }
 
 class _InfoTile extends StatelessWidget {
   final IconData icon;
@@ -233,7 +436,9 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (value == null || value!.isEmpty) return const SizedBox();
+    if (value == null || value!.isEmpty) {
+      return const SizedBox();
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),

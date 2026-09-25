@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:khadem/core/services/cloudinary_service.dart';
 
-
 class CompleteProfileRepo {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -69,7 +68,8 @@ class CompleteProfileRepo {
 
     if (isServant) {
       data['specialization'] = specialization;
-      data['isNoteVisible'] = true;
+      data['isNoteVisible'] = false;
+      data['autoAvailabilityEnabled'] = false;
       data['isAvailable'] = true;
 
       if (openHour != null) data['openHour'] = openHour;

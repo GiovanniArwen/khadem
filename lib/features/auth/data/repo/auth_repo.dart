@@ -2,18 +2,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:khadem/core/services/local/shared_pref.dart';
-import 'package:khadem/features/auth/data/models/user_role.dart';
+import 'package:khadem/features/auth/data/models/auth_user_roles.dart';
 
 class AuthRepo {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // =========================
   // Get Current User Roles
   // =========================
-  static Future<Either<String, AuthUserRoles>>
-      getCurrentUserRoles() async {
+  static Future<Either<String, AuthUserRoles>> getCurrentUserRoles() async {
     try {
       final user = _auth.currentUser;
 
@@ -21,10 +19,7 @@ class AuthRepo {
         return const Left('المستخدم غير مسجل الدخول');
       }
 
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
       if (!userDoc.exists) {
         return const Left('بيانات المستخدم غير موجودة');
@@ -43,14 +38,13 @@ class AuthRepo {
 
       return Right(
         AuthUserRoles(
+          uid: user.uid,
           isServant: isServant,
           isChurchAdmin: isChurchAdmin,
         ),
       );
     } catch (e) {
-      return const Left(
-        'حدث خطأ أثناء تحميل بيانات المستخدم',
-      );
+      return const Left('حدث خطأ أثناء تحميل بيانات المستخدم');
     }
   }
 
@@ -65,8 +59,7 @@ class AuthRepo {
     required bool isChurchAdmin,
   }) async {
     try {
-      final userCredential =
-          await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
@@ -75,15 +68,15 @@ class AuthRepo {
 
       await user.updateDisplayName(name);
 
+      // Send verification email
+      await user.sendEmailVerification();
+
       await SharedPref.setUserId(user.uid);
 
       // =========================
       // Create User Document
       // =========================
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .set({
+      await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
         'name': name,
         'email': email.trim(),
@@ -93,17 +86,16 @@ class AuthRepo {
         'isChurchAdmin': isChurchAdmin,
 
         // Verification
-        'servantStatus':
-            isServant ? 'approved' : 'not_requested',
+        'servantStatus': isServant ? 'approved' : 'not_requested',
 
-        'churchAdminStatus':
-            isChurchAdmin ? 'approved' : 'not_requested',
+        'churchAdminStatus': isChurchAdmin ? 'approved' : 'not_requested',
 
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       return Right(
         AuthUserRoles(
+          uid: user.uid,
           isServant: isServant,
           isChurchAdmin: isChurchAdmin,
         ),
@@ -114,15 +106,11 @@ class AuthRepo {
       }
 
       if (e.code == 'email-already-in-use') {
-        return const Left(
-          'البريد الإلكتروني مستخدم بالفعل',
-        );
+        return const Left('البريد الإلكتروني مستخدم بالفعل');
       }
 
       if (e.code == 'invalid-email') {
-        return const Left(
-          'البريد الإلكتروني غير صحيح',
-        );
+        return const Left('البريد الإلكتروني غير صحيح');
       }
 
       return const Left('حدث خطأ ما');
@@ -139,8 +127,7 @@ class AuthRepo {
     required String password,
   }) async {
     try {
-      final credential =
-          await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
@@ -149,57 +136,82 @@ class AuthRepo {
 
       await SharedPref.setUserId(user.uid);
 
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
       if (!userDoc.exists) {
-        return const Left(
-          'بيانات المستخدم غير موجودة',
-        );
+        return const Left('بيانات المستخدم غير موجودة');
       }
 
       final data = userDoc.data()!;
 
       final isServant = data['isServant'] == true;
-      final isChurchAdmin =
-          data['isChurchAdmin'] == true;
+      final isChurchAdmin = data['isChurchAdmin'] == true;
 
       if (!isServant && !isChurchAdmin) {
-        return const Left(
-          'المستخدم ليس لديه صلاحية',
-        );
+        return const Left('المستخدم ليس لديه صلاحية');
       }
 
       return Right(
         AuthUserRoles(
+          uid: user.uid,
           isServant: isServant,
           isChurchAdmin: isChurchAdmin,
         ),
       );
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
-        return const Left(
-          'البريد الإلكتروني غير مستخدم',
-        );
+        return const Left('البريد الإلكتروني غير مستخدم');
       }
 
       if (e.code == 'wrong-password') {
-        return const Left(
-          'كلمة المرور غير صحيحة',
-        );
+        return const Left('كلمة المرور غير صحيحة');
       }
 
       if (e.code == 'invalid-credential') {
-        return const Left(
-          'البريد الإلكتروني أو كلمة المرور غير صحيحة',
-        );
+        return const Left('البريد الإلكتروني أو كلمة المرور غير صحيحة');
       }
 
       return const Left('حدث خطأ ما');
     } catch (e) {
       return const Left('حدث خطأ ما');
+    }
+  }
+
+  // =========================
+  // Forgot Password
+  // =========================
+  static Future<Either<String, String>> forgotPassword({
+    required String email,
+    required String languageCode,
+  }) async {
+    try {
+      final cleanEmail = email.trim();
+
+      if (cleanEmail.isEmpty) {
+        return const Left('من فضلك اكتب البريد الإلكتروني');
+      }
+
+      await _auth.setLanguageCode(languageCode);
+
+      await _auth.sendPasswordResetEmail(email: cleanEmail);
+
+      return const Right(
+        'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني',
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        return const Left('لا يوجد حساب مرتبط بهذا البريد الإلكتروني');
+      }
+
+      if (e.code == 'invalid-email') {
+        return const Left('البريد الإلكتروني غير صحيح');
+      }
+
+      if (e.code == 'too-many-requests') {
+        return const Left('تم إرسال طلبات كثيرة، حاول مرة أخرى لاحقًا');
+      }
+
+      return const Left('حدث خطأ أثناء إرسال رابط إعادة تعيين كلمة المرور');
     }
   }
 }

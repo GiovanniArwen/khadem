@@ -12,7 +12,20 @@
           "package_name": "com.example.khadem"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "648114575371-qhigolv5sfek16epgcfithm29qgrh8ph.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.khadem",
+            "certificate_hash": "941b357136fcd39e54f7b32e39ece8c86951d34a"
+          }
+        },
+        {
+          "client_id": "648114575371-2l4irm43crpfrl9sbthg8b8dq6vv195k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDMHTj-7ZW3m6EAjIo29_3Rp-0iLvfFaq0"
@@ -20,7 +33,63 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "648114575371-2l4irm43crpfrl9sbthg8b8dq6vv195k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "648114575371-tpnno0reb4r76scacc9jt4cunbi67a04.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.khadem"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:648114575371:android:5975bcac389f093b878f0e",
+        "android_client_info": {
+          "package_name": "com.giovanniarwen.khadem"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "648114575371-fageg5bvpmu5ht5vlga1otmsfp7h5lq8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.giovanniarwen.khadem",
+            "certificate_hash": "941b357136fcd39e54f7b32e39ece8c86951d34a"
+          }
+        },
+        {
+          "client_id": "648114575371-2l4irm43crpfrl9sbthg8b8dq6vv195k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMHTj-7ZW3m6EAjIo29_3Rp-0iLvfFaq0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "648114575371-2l4irm43crpfrl9sbthg8b8dq6vv195k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "648114575371-tpnno0reb4r76scacc9jt4cunbi67a04.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.khadem"
+              }
+            }
+          ]
         }
       }
     }

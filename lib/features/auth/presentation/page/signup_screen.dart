@@ -8,6 +8,9 @@ import 'package:khadem/core/utils/colors.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_event.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_state.dart';
+import 'package:khadem/features/auth/presentation/widgets/auth_circle_button.dart';
+import 'package:khadem/features/auth/presentation/widgets/auth_text_field_forsign.dart';
+import 'package:khadem/features/auth/presentation/widgets/role_card.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -107,7 +110,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       // ===== Top bar =====
                       Row(
                         children: [
-                          _circleButton(
+                          AuthCircleButton(
                             icon: Icons.arrow_forward_ios_rounded,
                             onTap: () => pop(context),
                           ),
@@ -135,53 +138,60 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       const SizedBox(height: 28),
 
-                      _buildField(
+                      AuthTextFieldS(
                         controller: nameController,
                         label: 'الاسم بالكامل',
-                        hint: 'اكتب اسمك الثلاثي',
-                        icon: Icons.person_outline_rounded,
+                        hintText: 'اكتب اسمك الثلاثي',
+                        prefixIcon: Icons.person_outline_rounded,
                         keyboardType: TextInputType.name,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'من فضلك ادخل الاسم';
                           }
+
                           if (value.trim().length < 3) {
                             return 'الاسم قصير جداً';
                           }
+
                           return null;
                         },
                       ),
 
-                      _buildField(
+                      AuthTextFieldS(
                         controller: emailController,
                         label: 'البريد الإلكتروني',
-                        hint: 'example@example.com',
-                        icon: Icons.email_outlined,
+                        hintText: 'example@example.com',
+                        prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'من فضلك ادخل الايميل';
                           }
+
                           final emailRegex = RegExp(
                             r'^[\w\.\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$',
                           );
+
                           if (!emailRegex.hasMatch(value.trim())) {
                             return 'الايميل غير صحيح';
                           }
+
                           return null;
                         },
                       ),
 
-                      _buildField(
+                      AuthTextFieldS(
                         controller: passwordController,
                         label: 'كلمة السر',
-                        hint: '••••••••',
-                        icon: Icons.lock_outline_rounded,
-                        obscure: !isPasswordVisible,
-                        suffix: IconButton(
-                          onPressed: () => setState(
-                            () => isPasswordVisible = !isPasswordVisible,
-                          ),
+                        hintText: '••••••••',
+                        prefixIcon: Icons.lock_outline_rounded,
+                        obscureText: !isPasswordVisible,
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              isPasswordVisible = !isPasswordVisible;
+                            });
+                          },
                           icon: Icon(
                             isPasswordVisible
                                 ? Icons.visibility_rounded
@@ -194,23 +204,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'من فضلك ادخل كلمة السر';
                           }
+
                           if (value.length < 6) {
                             return 'كلمة السر يجب أن تكون 6 أحرف على الأقل';
                           }
+
                           return null;
                         },
                       ),
 
-                      _buildField(
+                      AuthTextFieldS(
                         controller: confirmPasswordController,
                         label: 'تأكيد كلمة السر',
-                        hint: '••••••••',
-                        icon: Icons.lock_reset_rounded,
-                        obscure: !isConfirmVisible,
-                        suffix: IconButton(
-                          onPressed: () => setState(
-                            () => isConfirmVisible = !isConfirmVisible,
-                          ),
+                        hintText: '••••••••',
+                        prefixIcon: Icons.lock_reset_rounded,
+                        obscureText: !isConfirmVisible,
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              isConfirmVisible = !isConfirmVisible;
+                            });
+                          },
                           icon: Icon(
                             isConfirmVisible
                                 ? Icons.visibility_rounded
@@ -223,6 +237,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           if (value != passwordController.text) {
                             return 'كلمة السر غير متطابقة';
                           }
+
                           return null;
                         },
                       ),
@@ -248,7 +263,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       const SizedBox(height: 14),
 
-                      _roleCard(
+                      RoleCard(
                         icon: Icons.volunteer_activism_rounded,
                         title: 'خادم',
                         subtitle: 'أريد الخدمة واستقبال الدعوات',
@@ -258,7 +273,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                       const SizedBox(height: 12),
 
-                      _roleCard(
+                      RoleCard(
                         icon: Icons.groups_rounded,
                         title: 'مسؤول اجتماع',
                         subtitle: 'هدعي الخدام للاجتماع',
@@ -384,173 +399,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _circleButton({required IconData icon, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.borderColor),
-        ),
-        child: Icon(icon, size: 18, color: AppColors.primaryColor),
-      ),
-    );
-  }
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    String? hint,
-    bool obscure = false,
-    Widget? suffix,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textDarkColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            obscureText: obscure,
-            validator: validator,
-            style: const TextStyle(color: AppColors.textDarkColor),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                color: AppColors.hintColor,
-                fontSize: 13,
-              ),
-              prefixIcon: Icon(icon, color: AppColors.primaryColor, size: 21),
-              suffixIcon: suffix,
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 17,
-              ),
-              border: _border(AppColors.borderColor),
-              enabledBorder: _border(AppColors.borderColor),
-              focusedBorder: _border(AppColors.primaryColor, width: 1.4),
-              errorBorder: _border(AppColors.redColor),
-              focusedErrorBorder: _border(AppColors.redColor, width: 1.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  OutlineInputBorder _border(Color color, {double width = 1}) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: color, width: width),
-    );
-  }
-
-  Widget _roleCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAF1FF) : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? AppColors.primaryColor : AppColors.borderColor,
-            width: selected ? 1.6 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.primaryColor : AppColors.fieldColor,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                icon,
-                color: selected ? Colors.white : AppColors.textGreyColor,
-                size: 23,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textDarkColor,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textGreyColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? AppColors.primaryColor : Colors.transparent,
-                border: Border.all(
-                  color: selected
-                      ? AppColors.primaryColor
-                      : AppColors.borderColor,
-                  width: 1.6,
-                ),
-              ),
-              child: selected
-                  ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 15,
-                    )
-                  : null,
-            ),
-          ],
-        ),
       ),
     );
   }
