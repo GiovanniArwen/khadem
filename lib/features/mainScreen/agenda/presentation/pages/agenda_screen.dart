@@ -438,7 +438,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.secondaryColor,
+      backgroundColor: AppColors.accentColor,
       builder: (_) => BlocProvider.value(
         value: agendaBloc,
         child: AvailabilitySheet(uid: widget.uid, date: _selectedDay),

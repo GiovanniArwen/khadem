@@ -192,4 +192,6 @@ class AgendaBloc extends Bloc<AgendaEvent, AgendaState> {
 
     return super.close();
   }
+
+
 }

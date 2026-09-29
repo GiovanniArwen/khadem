@@ -3,6 +3,7 @@ import 'package:khadem/core/routes/navigation.dart';
 import 'package:khadem/core/routes/routes.dart';
 import 'package:khadem/core/utils/colors.dart';
 import 'package:khadem/core/utils/text_styles.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _OnboardingData {
   final String title;
@@ -54,13 +55,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _current = 0;
 
+  /// نفس المفتاح المستخدم في SplashScreen بالظبط.
+  static const String _kHasSeenOnboardingKey = 'has_seen_onboarding';
+
+  bool _isFinishing = false;
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
-  void _finish() {
+  Future<void> _finish() async {
+    if (_isFinishing) return; // يمنع الضغط أكتر من مرة أثناء الحفظ
+    _isFinishing = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kHasSeenOnboardingKey, true);
+
+    if (!mounted) return;
+
     // خد بالك: غيّر الوجهة هنا لو عايز onboarding يودي على SignUp
     // بدل Login في أول مرة يفتح فيها المستخدم التطبيق.
     pushWithReplacement(context, Routes.login);
@@ -89,7 +103,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final isLast = _current == _pages.length - 1;
 
-return Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.whiteColor,
       body: SafeArea(
         child: Column(

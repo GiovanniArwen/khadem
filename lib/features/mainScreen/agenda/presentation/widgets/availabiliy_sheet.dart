@@ -37,6 +37,9 @@ class AvailabilitySheet extends StatelessWidget {
 
           const SizedBox(height: 25),
 
+          // =========================
+          // Available
+          // =========================
           ListTile(
             leading: const Icon(
               Icons.check_circle,
@@ -50,12 +53,12 @@ class AvailabilitySheet extends StatelessWidget {
             ),
             onTap: () {
               context.read<AgendaBloc>().add(
-                    SetAvailability(
-                      uid: uid,
-                      date: date,
-                      isAvailable: true,
-                    ),
-                  );
+                SetAvailability(
+                  uid: uid,
+                  date: date,
+                  isAvailable: true,
+                ),
+              );
 
               Navigator.pop(context);
             },
@@ -63,6 +66,9 @@ class AvailabilitySheet extends StatelessWidget {
 
           const Divider(),
 
+          // =========================
+          // Not Available
+          // =========================
           ListTile(
             leading: const Icon(
               Icons.cancel,
@@ -76,12 +82,40 @@ class AvailabilitySheet extends StatelessWidget {
             ),
             onTap: () {
               context.read<AgendaBloc>().add(
-                    SetAvailability(
-                      uid: uid,
-                      date: date,
-                      isAvailable: false,
-                    ),
-                  );
+                SetAvailability(
+                  uid: uid,
+                  date: date,
+                  isAvailable: false,
+                ),
+              );
+
+              Navigator.pop(context);
+            },
+          ),
+
+          const Divider(),
+
+          // =========================
+          // Clear Availability
+          // =========================
+          ListTile(
+            leading: const Icon(
+              Icons.close,
+              color: Colors.grey,
+            ),
+            title: const Text(
+              'إلغاء تحديد التوفر',
+            ),
+            subtitle: const Text(
+              'لن يتم تحديد حالتك لهذا اليوم',
+            ),
+            onTap: () {
+              context.read<AgendaBloc>().add(
+                DeleteAvailability(
+                  uid: uid,
+                  date: date,
+                ),
+              );
 
               Navigator.pop(context);
             },

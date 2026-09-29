@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:khadem/core/routes/routes.dart';
 import 'package:khadem/core/services/internet_connection_service.dart';
 import 'package:khadem/core/services/local/shared_pref.dart';
@@ -27,6 +28,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ar'), Locale('en')],
+      locale: const Locale('ar'), // اختياري: يخلي التطبيق كله عربي افتراضيًا
       debugShowCheckedModeBanner: false,
       routerConfig: Routes.routes,
       theme: AppThemes.lightTheme,

@@ -180,6 +180,7 @@ class _AddEventSheetState extends State<AddEventSheet> {
             Expanded(
               child: Text(
                 value == null ? title : _formatDateTime(value),
+                textDirection: TextDirection.rtl,
                 style: TextStyles.body,
               ),
             ),
@@ -189,6 +190,15 @@ class _AddEventSheetState extends State<AddEventSheet> {
       ),
     );
   }
+
+  // =========================================================
+  // Date / Time pickers — forced to Arabic locale so they match
+  // the rest of the (Arabic RTL) app instead of showing in English.
+  //
+  // NOTE: this requires the app's MaterialApp to already declare
+  // Arabic as a supported locale with the Material localization
+  // delegates (see the note after the code).
+  // =========================================================
 
   Future<void> _pickDateTime({required bool isStart}) async {
     final initialDate = isStart
@@ -200,13 +210,32 @@ class _AddEventSheetState extends State<AddEventSheet> {
       initialDate: initialDate,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime(2035),
+      locale: const Locale('ar'),
+      builder: (context, child) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
 
     if (date == null) return;
 
+    if (!mounted) return;
+
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initialDate),
+      builder: (context, child) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Localizations.override(
+            context: context,
+            locale: const Locale('ar'),
+            child: child,
+          ),
+        );
+      },
     );
 
     if (time == null) return;
@@ -228,25 +257,43 @@ class _AddEventSheetState extends State<AddEventSheet> {
     });
   }
 
+  void _showError(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('تنبيه'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('حسنًا'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _saveEvent() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     if (_startTime == null || _endTime == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('حدد وقت البداية والنهاية')));
-
+      _showError('حدد وقت البداية والنهاية');
       return;
     }
 
     // النهاية لازم تكون بعد البداية
     if (!_endTime!.isAfter(_startTime!)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('وقت النهاية يجب أن يكون بعد البداية')),
-      );
-
+      _showError('وقت النهاية يجب أن يكون بعد وقت البداية');
       return;
     }
 
@@ -254,10 +301,7 @@ class _AddEventSheetState extends State<AddEventSheet> {
     final duration = _endTime!.difference(_startTime!);
 
     if (duration < const Duration(hours: 2)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('مدة الموعد يجب ألا تقل عن ساعتين')),
-      );
-
+      _showError('مدة الموعد يجب ألا تقل عن ساعتين');
       return;
     }
 
@@ -283,17 +327,18 @@ class _AddEventSheetState extends State<AddEventSheet> {
   }
 
   String _formatDateTime(DateTime date) {
-    final hour = date.hour > 12
-        ? date.hour - 12
-        : date.hour == 0
-        ? 12
-        : date.hour;
+    int hour = date.hour % 12;
+
+    if (hour == 0) {
+      hour = 12;
+    }
 
     final minute = date.minute.toString().padLeft(2, '0');
 
     final period = date.hour >= 12 ? 'م' : 'ص';
 
-    return '${date.day}/${date.month}/${date.year} - '
-        '$hour:$minute $period';
+    const rtl = '\u200F';
+
+    return '$rtl$hour:$minute $period$rtl';
   }
 }
