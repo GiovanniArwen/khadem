@@ -1,13 +1,9 @@
 {
-  "name": "khadem-notification-backend",
+  "name": "khadem-notification-worker",
   "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
+  "private": true,
+  "type": "module",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "firebase-admin": "^13.5.0"
+    "jose": "^6.1.0"
   }
 }
