@@ -76,9 +76,8 @@ function firestoreFieldsToObject(fields = {}) {
  */
 function getServiceAccount(env) {
   if (!env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    throw new Error(
-      "FIREBASE_SERVICE_ACCOUNT_JSON secret is missing"
-    );
+    throw new Error("SERVICE_ACCOUNT_SECRET_NOT_AVAILABLE");
+
   }
 
   return JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
@@ -404,7 +403,7 @@ export default {
       if (
         request.method === "POST" &&
         new URL(request.url).pathname ===
-          "/send-chat-notification"
+        "/send-chat-notification"
       ) {
         const authHeader =
           request.headers.get("Authorization") || "";
@@ -540,8 +539,8 @@ export default {
         const senderData =
           senderDocument
             ? firestoreFieldsToObject(
-                senderDocument.fields || {}
-              )
+              senderDocument.fields || {}
+            )
             : {};
 
         const senderName =
