@@ -386,18 +386,18 @@ export default {
       /*
        * اختبار السيرفر
        */
-      if (
-        request.method === "GET" &&
-        new URL(request.url).pathname === "/health"
-      ) {
-        return json({
-          success: true,
-          message: "Khadem Cloudflare Worker is running",
-          serviceAccountConfigured:
-            !!env.FIREBASE_SERVICE_ACCOUNT_JSON,
-        });
-      }
-
+if (
+  request.method === "GET" &&
+  new URL(request.url).pathname === "/health"
+) {
+  return json({
+    success: true,
+    message: "Khadem Cloudflare Worker is running",
+    hasServiceAccount:
+      !!env.FIREBASE_SERVICE_ACCOUNT_JSON,
+    envKeys: Object.keys(env),
+  });
+}
       /*
        * إرسال Chat Notification
        */
