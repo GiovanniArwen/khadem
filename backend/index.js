@@ -392,8 +392,9 @@ export default {
       ) {
         return json({
           success: true,
-          message:
-            "Khadem Cloudflare Worker is running",
+          message: "Khadem Cloudflare Worker is running",
+          serviceAccountConfigured:
+            !!env.FIREBASE_SERVICE_ACCOUNT_JSON,
         });
       }
 
