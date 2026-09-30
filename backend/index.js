@@ -1,6 +1,10 @@
 import { importPKCS8, importX509, SignJWT, jwtVerify } from "jose";
 
-const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
+const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/firebase.messaging",
+  "https://www.googleapis.com/auth/datastore",
+].join(" ");
+
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const FIREBASE_CERTS_URL =
   "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
@@ -99,7 +103,7 @@ async function getGoogleAccessToken(env) {
   const now = Math.floor(Date.now() / 1000);
 
   const assertion = await new SignJWT({
-    scope: FCM_SCOPE,
+    scope: GOOGLE_SCOPES,
   })
     .setProtectedHeader({
       alg: "RS256",
@@ -386,18 +390,18 @@ export default {
       /*
        * اختبار السيرفر
        */
-if (
-  request.method === "GET" &&
-  new URL(request.url).pathname === "/health"
-) {
-  return json({
-    success: true,
-    message: "Khadem Cloudflare Worker is running",
-    hasServiceAccount:
-      !!env.FIREBASE_SERVICE_ACCOUNT_JSON,
-    envKeys: Object.keys(env),
-  });
-}
+      if (
+        request.method === "GET" &&
+        new URL(request.url).pathname === "/health"
+      ) {
+        return json({
+          success: true,
+          message: "Khadem Cloudflare Worker is running",
+          hasServiceAccount:
+            !!env.FIREBASE_SERVICE_ACCOUNT_JSON,
+          envKeys: Object.keys(env),
+        });
+      }
       /*
        * إرسال Chat Notification
        */
