@@ -1,11 +1,17 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import 'package:khadem/features/mainScreen/chat/data/models/chat_model.dart';
 import 'package:khadem/features/mainScreen/chat/data/models/message_model.dart';
 
 class ChatRepo {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  static const String _notificationWorkerUrl =
+      'https://khadem.jovanyarwen.workers.dev/send-chat-notification';
 
   String get currentUid {
     final uid = _auth.currentUser?.uid;
@@ -55,8 +61,6 @@ class ChatRepo {
         'participants': [currentUid, otherUserId],
         'lastMessage': '',
         'updatedAt': FieldValue.serverTimestamp(),
-
-        // عدد الرسائل غير المقروءة لكل مستخدم
         'unread': {
           currentUid: 0,
           otherUserId: 0,
@@ -99,6 +103,8 @@ class ChatRepo {
 
     final messageRef = _messagesReference(otherUserId).doc();
 
+    final messageId = messageRef.id;
+
     final batch = _firestore.batch();
 
     // 1. إضافة الرسالة
@@ -109,14 +115,71 @@ class ChatRepo {
     });
 
     // 2. تحديث بيانات الشات
-    // نزيد unread عند الشخص الآخر فقط
     batch.update(chatRef, {
       'lastMessage': trimmedText,
       'updatedAt': FieldValue.serverTimestamp(),
       'unread.$otherUserId': FieldValue.increment(1),
     });
 
+    // 3. حفظ الرسالة أولًا في Firestore
     await batch.commit();
+
+    // 4. بعد نجاح حفظ الرسالة، نرسل طلب للـ Worker
+    try {
+      await _sendChatNotification(
+        chatId: chatRef.id,
+        messageId: messageId,
+        text: trimmedText,
+      );
+    } catch (error) {
+      // مهم:
+      // فشل الإشعار لا يعني فشل إرسال الرسالة.
+      print('Chat notification error: $error');
+    }
+  }
+
+  Future<void> _sendChatNotification({
+    required String chatId,
+    required String messageId,
+    required String text,
+  }) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw Exception('المستخدم غير مسجل الدخول');
+    }
+
+    // الحصول على Firebase ID Token
+    final idToken = await user.getIdToken();
+
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception('Firebase ID Token غير موجود');
+    }
+
+    final response = await http.post(
+      Uri.parse(_notificationWorkerUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+      body: jsonEncode({
+        'chatId': chatId,
+        'messageId': messageId,
+        'text': text,
+      }),
+    );
+
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300) {
+      throw Exception(
+        'Notification Worker error '
+        '${response.statusCode}: ${response.body}',
+      );
+    }
+
+    print(
+      'Chat notification response: ${response.body}',
+    );
   }
 
   /// تصفير الرسائل غير المقروءة في محادثة معينة
