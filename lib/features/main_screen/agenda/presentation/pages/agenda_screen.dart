@@ -1,0 +1,689 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/widgets/add_event_sheet.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/widgets/availabiliy_sheet.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/widgets/event_card.dart';
+import 'package:table_calendar/table_calendar.dart';
+
+import 'package:khadem/core/utils/colors.dart';
+import 'package:khadem/core/utils/text_styles.dart';
+import 'package:khadem/features/main_screen/agenda/data/models/agenda_event_model.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/bloc/agenda_event.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/bloc/agenda_state.dart';
+
+class AgendaScreen extends StatefulWidget {
+  const AgendaScreen({super.key, required this.uid});
+
+  final String uid;
+
+  @override
+  State<AgendaScreen> createState() => _AgendaScreenState();
+}
+
+class _AgendaScreenState extends State<AgendaScreen> {
+  DateTime _focusedDay = DateTime.now();
+  DateTime _selectedDay = DateTime.now();
+
+  bool? _monthAvailability(AgendaState state, DateTime month) {
+    if (state is! AgendaLoaded) return null;
+
+    for (final item in state.availability) {
+      if (item.isMonthly &&
+          item.date != null &&
+          item.date!.year == month.year &&
+          item.date!.month == month.month) {
+        return item.isAvailable;
+      }
+    }
+
+    return null;
+  }
+
+  String _monthName(DateTime date) {
+    const months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    print('================ AGENDA ================');
+    print('AGENDA UID: "${widget.uid}"');
+    print('UID EMPTY: ${widget.uid.isEmpty}');
+    print('=========================================');
+
+    if (widget.uid.isNotEmpty) {
+      context.read<AgendaBloc>().add(LoadAgenda(widget.uid));
+    }
+  }
+
+  // =========================================================
+  // Events for selected day
+  // =========================================================
+
+  List<AgendaEventModel> _eventsForDay(
+    List<AgendaEventModel> events,
+    DateTime day,
+  ) {
+    return events.where((event) {
+      final start = event.startTime;
+      final end = event.endTime;
+
+      if (start == null || end == null) {
+        return false;
+      }
+
+      final dayOnly = DateTime(day.year, day.month, day.day);
+
+      final startDay = DateTime(start.year, start.month, start.day);
+
+      final endDay = DateTime(end.year, end.month, end.day);
+
+      // Event appears on every day from start -> end
+      return !dayOnly.isBefore(startDay) && !dayOnly.isAfter(endDay);
+    }).toList();
+  }
+
+  // =========================================================
+  // Availability
+  // =========================================================
+
+  bool _isAvailable(AgendaState state, DateTime day) {
+    if (state is! AgendaLoaded) return false;
+
+    // 1. التحديد اليومي له الأولوية
+    for (final item in state.availability) {
+      if (item.isMonthly || item.date == null) continue;
+
+      if (isSameDay(item.date!, day)) {
+        return item.isAvailable;
+      }
+    }
+
+    // 2. لو مفيش تحديد يومي، نستخدم إعداد الشهر
+    for (final item in state.availability) {
+      if (!item.isMonthly || item.date == null) continue;
+
+      if (item.date!.year == day.year && item.date!.month == day.month) {
+        return item.isAvailable;
+      }
+    }
+
+    // 3. لا يوجد تحديد لليوم أو الشهر
+    return false;
+  }
+
+
+bool _hasAvailability(AgendaState state, DateTime day) {
+  if (state is! AgendaLoaded) return false;
+
+  // عرض اللون فقط لو اليوم نفسه له تحديد صريح
+  return state.availability.any((item) {
+    return !item.isMonthly &&
+        item.date != null &&
+        isSameDay(item.date!, day);
+  });
+}
+
+
+  // =========================================================
+  // Build
+  // =========================================================
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.uid.isEmpty) {
+      return const Scaffold(
+        body: Center(child: Text('خطأ: UID المستخدم غير موجود')),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.accentColor,
+
+      appBar: AppBar(
+        title: Text(
+          'النوتة',
+          style: TextStyles.title.copyWith(color: AppColors.accentColor),
+        ),
+        centerTitle: true,
+        backgroundColor: AppColors.primaryColor,
+        elevation: 0,
+      ),
+
+      body: BlocBuilder<AgendaBloc, AgendaState>(
+        builder: (context, state) {
+          if (state is AgendaLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state is AgendaError) {
+            return Center(child: Text(state.message, style: TextStyles.body));
+          }
+
+          if (state is AgendaLoaded) {
+            final dayEvents = _eventsForDay(state.events, _selectedDay);
+
+            return Column(
+              children: [
+                _buildCalendar(state),
+
+                const SizedBox(height: 10),
+
+                _buildAvailabilityStatus(state),
+
+                const SizedBox(height: 10),
+
+                Expanded(
+                  child: dayEvents.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: dayEvents.length,
+                          itemBuilder: (context, index) {
+                            final event = dayEvents[index];
+
+                            return EventCard(
+                              event: event,
+
+                              // =========================
+                              // Edit
+                              // =========================
+                              onEdit: () {
+                                _showEventDialog(event: event);
+                              },
+
+                              // =========================
+                              // Delete
+                              // =========================
+                              onDelete: () {
+                                _deleteEvent(event);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          }
+
+          return const SizedBox();
+        },
+      ),
+
+      // =====================================================
+      // Add Event
+      // =====================================================
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primaryColor,
+        onPressed: () {
+          _showEventDialog();
+        },
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  // =========================================================
+  // Event Dialog
+  // =========================================================
+
+  void _showEventDialog({AgendaEventModel? event}) {
+    final agendaBloc = context.read<AgendaBloc>();
+
+    showModalBottomSheet(
+      context: context,
+
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return BlocProvider.value(
+          value: agendaBloc,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: AddEventSheet(uid: widget.uid, event: event),
+          ),
+        );
+      },
+    );
+  }
+  // =========================================================
+  // Calendar
+  // =========================================================
+
+  Widget _buildCalendar(AgendaLoaded state) {
+    final monthAvailability = _monthAvailability(state, _focusedDay);
+
+    final statusText = monthAvailability == true
+        ? 'متاح هذا الشهر'
+        : monthAvailability == false
+        ? 'غير متاح هذا الشهر'
+        : 'تحديد حالة الشهر';
+
+    final statusColor = monthAvailability == true
+        ? Colors.green
+        : monthAvailability == false
+        ? Colors.red
+        : Colors.grey;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Custom month header
+            Row(
+              children: [
+                IconButton(
+                  tooltip: 'الشهر السابق',
+                  onPressed: () {
+                    setState(() {
+                      _focusedDay = DateTime(
+                        _focusedDay.year,
+                        _focusedDay.month - 1,
+                        1,
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.chevron_left),
+                ),
+
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        _monthName(_focusedDay),
+                        style: TextStyles.title.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+
+                      PopupMenuButton<int>(
+                        tooltip: 'تغيير حالة الشهر',
+                        onSelected: (value) {
+                          final month = DateTime(
+                            _focusedDay.year,
+                            _focusedDay.month,
+                            1,
+                          );
+
+                          if (value == 0 || value == 1) {
+                            context.read<AgendaBloc>().add(
+                              SetMonthAvailability(
+                                uid: widget.uid,
+                                month: month,
+                                isAvailable: value == 0,
+                              ),
+                            );
+                          } else if (value == 2) {
+                            context.read<AgendaBloc>().add(
+                              DeleteMonthAvailability(
+                                uid: widget.uid,
+                                month: month,
+                              ),
+                            );
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem<int>(
+                            value: 0,
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.green),
+                                SizedBox(width: 8),
+                                Text('متاح هذا الشهر'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<int>(
+                            value: 1,
+                            child: Row(
+                              children: [
+                                Icon(Icons.cancel, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('غير متاح هذا الشهر'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem<int>(
+                            value: 2,
+                            child: Row(
+                              children: [
+                                Icon(Icons.restart_alt, color: Colors.grey),
+                                SizedBox(width: 8),
+                                Text('إلغاء تحديد الشهر'),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusColor.withOpacity(.10),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: statusColor.withOpacity(.35),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                monthAvailability == true
+                                    ? Icons.check_circle
+                                    : monthAvailability == false
+                                    ? Icons.cancel
+                                    : Icons.edit_calendar,
+                                size: 15,
+                                color: statusColor,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                statusText,
+                                style: TextStyles.body.copyWith(
+                                  color: statusColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                color: statusColor,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                IconButton(
+                  tooltip: 'الشهر التالي',
+                  onPressed: () {
+                    setState(() {
+                      _focusedDay = DateTime(
+                        _focusedDay.year,
+                        _focusedDay.month + 1,
+                        1,
+                      );
+                    });
+                  },
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+
+            TableCalendar(
+              locale: 'ar',
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2035, 12, 31),
+              focusedDay: _focusedDay,
+              headerVisible: false,
+
+              selectedDayPredicate: (day) {
+                return isSameDay(_selectedDay, day);
+              },
+
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+              },
+
+              onPageChanged: (focusedDay) {
+                setState(() {
+                  _focusedDay = focusedDay;
+                });
+              },
+
+              calendarFormat: CalendarFormat.month,
+              availableCalendarFormats: const {CalendarFormat.month: 'شهر'},
+
+              daysOfWeekHeight: 32,
+
+              daysOfWeekStyle: DaysOfWeekStyle(
+                weekdayStyle: TextStyles.body.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+                weekendStyle: TextStyles.body.copyWith(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              calendarStyle: CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: AppColors.primaryColor.withOpacity(.25),
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: const BoxDecoration(
+                  color: AppColors.primaryColor,
+                  shape: BoxShape.circle,
+                ),
+                markerDecoration: const BoxDecoration(
+                  color: AppColors.hintColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+
+              eventLoader: (day) {
+                return _eventsForDay(state.events, day);
+              },
+
+              calendarBuilders: CalendarBuilders(
+                defaultBuilder: (context, day, focusedDay) {
+                  if (!_hasAvailability(state, day)) {
+                    return null;
+                  }
+
+                  final available = _isAvailable(state, day);
+
+                  return Center(
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: available
+                            ? Colors.green.withOpacity(.18)
+                            : Colors.red.withOpacity(.18),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${day.day}',
+                        style: TextStyles.body.copyWith(
+                          color: available
+                              ? Colors.green.shade700
+                              : Colors.red.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // =========================================================
+  // Availability Status
+  // =========================================================
+
+  Widget _buildAvailabilityStatus(AgendaLoaded state) {
+    final hasAvailability = _hasAvailability(state, _selectedDay);
+
+    if (!hasAvailability) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            const Icon(Icons.help_outline, color: Colors.grey),
+
+            const SizedBox(width: 8),
+
+            Text('لم يتم تحديد حالة التوفر لهذا اليوم', style: TextStyles.body),
+
+            const Spacer(),
+
+            TextButton(
+              onPressed: _showAvailabilitySheet,
+              child: const Text('تحديد'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final available = _isAvailable(state, _selectedDay);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: available
+            ? Colors.green.withOpacity(.10)
+            : Colors.red.withOpacity(.10),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            available ? Icons.check_circle : Icons.cancel,
+            color: available ? Colors.green : Colors.red,
+          ),
+
+          const SizedBox(width: 10),
+
+          Text(
+            available ? 'أنت متاح في هذا اليوم' : 'أنت غير متاح في هذا اليوم',
+            style: TextStyles.body.copyWith(fontWeight: FontWeight.bold),
+          ),
+
+          const Spacer(),
+
+          TextButton(
+            onPressed: _showAvailabilitySheet,
+            child: const Text('تعديل'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // Empty State
+  // =========================================================
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.event_busy, size: 60, color: Colors.grey.shade400),
+
+          const SizedBox(height: 12),
+
+          Text('لا توجد مواعيد لهذا اليوم', style: TextStyles.body),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // Availability Dialog/Sheet
+  // =========================================================
+
+  void _showAvailabilitySheet() {
+    final agendaBloc = context.read<AgendaBloc>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.accentColor,
+      builder: (_) => BlocProvider.value(
+        value: agendaBloc,
+        child: AvailabilitySheet(uid: widget.uid, date: _selectedDay),
+      ),
+    );
+  }
+
+  // =========================================================
+  // Delete
+  // =========================================================
+
+  void _deleteEvent(AgendaEventModel event) {
+    if (event.id == null) {
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('حذف الموعد'),
+
+          content: const Text('هل أنت متأكد أنك تريد حذف هذا الموعد؟'),
+
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('إلغاء'),
+            ),
+
+            TextButton(
+              onPressed: () {
+                context.read<AgendaBloc>().add(
+                  DeleteAgendaEvent(uid: widget.uid, eventId: event.id!),
+                );
+
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('حذف', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

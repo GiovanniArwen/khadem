@@ -51,6 +51,7 @@ class AuthRepo {
   // =========================
   // Sign Up
   // =========================
+
   static Future<Either<String, AuthUserRoles>> signUp({
     required String name,
     required String email,
@@ -59,37 +60,33 @@ class AuthRepo {
     required bool isChurchAdmin,
   }) async {
     try {
+      final cleanEmail = email.trim();
+
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
+        email: cleanEmail,
         password: password,
       );
 
-      final user = userCredential.user!;
+      final user = userCredential.user;
 
-      await user.updateDisplayName(name);
+      if (user == null) {
+        return const Left('تعذر إنشاء الحساب. حاول مرة أخرى.');
+      }
 
-      // Send verification email
+      await user.updateDisplayName(name.trim());
+
       await user.sendEmailVerification();
 
       await SharedPref.setUserId(user.uid);
 
-      // =========================
-      // Create User Document
-      // =========================
       await _firestore.collection('users').doc(user.uid).set({
         'uid': user.uid,
-        'name': name,
-        'email': email.trim(),
-
-        // Roles
+        'name': name.trim(),
+        'email': cleanEmail,
         'isServant': isServant,
         'isChurchAdmin': isChurchAdmin,
-
-        // Verification
         'servantStatus': isServant ? 'approved' : 'not_requested',
-
         'churchAdminStatus': isChurchAdmin ? 'approved' : 'not_requested',
-
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -101,21 +98,33 @@ class AuthRepo {
         ),
       );
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'weak-password') {
-        return const Left('كلمة المرور ضعيفة');
+      switch (e.code) {
+        case 'email-already-in-use':
+          return const Left(
+            'البريد الإلكتروني مسجل بالفعل. جرّب تسجيل الدخول.',
+          );
+        case 'invalid-email':
+          return const Left('البريد الإلكتروني غير صحيح.');
+        case 'weak-password':
+          return const Left('كلمة المرور ضعيفة. اختر كلمة مرور أقوى.');
+        case 'network-request-failed':
+          return const Left(
+            'تعذر الاتصال بالإنترنت. تحقق من اتصالك وحاول مجددًا.',
+          );
+        case 'too-many-requests':
+          return const Left('محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.');
+        case 'operation-not-allowed':
+          return const Left('التسجيل بالبريد الإلكتروني غير مفعّل حاليًا.');
+        default:
+          return Left('تعذر إنشاء الحساب (${e.code}). حاول مرة أخرى.');
       }
-
-      if (e.code == 'email-already-in-use') {
-        return const Left('البريد الإلكتروني مستخدم بالفعل');
-      }
-
-      if (e.code == 'invalid-email') {
-        return const Left('البريد الإلكتروني غير صحيح');
-      }
-
-      return const Left('حدث خطأ ما');
+    } on FirebaseException catch (e) {
+      return Left(
+        'تم إنشاء حساب الدخول، لكن تعذر حفظ البيانات (${e.code}). '
+        'حاول استكمال التسجيل أو تواصل مع الدعم.',
+      );
     } catch (e) {
-      return const Left('حدث خطأ ما');
+      return const Left('حدث خطأ غير متوقع أثناء إنشاء الحساب. حاول مرة أخرى.');
     }
   }
 
@@ -132,14 +141,22 @@ class AuthRepo {
         password: password,
       );
 
-      final user = credential.user!;
+      final user = credential.user;
 
-      await SharedPref.setUserId(user.uid);
+      if (user == null) {
+        return const Left('تعذر تسجيل الدخول. حاول مرة أخرى.');
+      }
 
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .get(const GetOptions(source: Source.server));
 
       if (!userDoc.exists) {
-        return const Left('بيانات المستخدم غير موجودة');
+        await _auth.signOut();
+        await SharedPref.setUserId('');
+
+        return const Left('بيانات الحساب غير موجودة. تواصل مع الدعم الفني.');
       }
 
       final data = userDoc.data()!;
@@ -148,8 +165,13 @@ class AuthRepo {
       final isChurchAdmin = data['isChurchAdmin'] == true;
 
       if (!isServant && !isChurchAdmin) {
-        return const Left('المستخدم ليس لديه صلاحية');
+        await _auth.signOut();
+        await SharedPref.setUserId('');
+
+        return const Left('الحساب ليس لديه صلاحية للدخول.');
       }
+
+      await SharedPref.setUserId(user.uid);
 
       return Right(
         AuthUserRoles(
@@ -163,21 +185,16 @@ class AuthRepo {
         return const Left('البريد الإلكتروني غير مستخدم');
       }
 
-      if (e.code == 'wrong-password') {
-        return const Left('كلمة المرور غير صحيحة');
-      }
-
-      if (e.code == 'invalid-credential') {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
         return const Left('البريد الإلكتروني أو كلمة المرور غير صحيحة');
       }
 
-      return const Left('حدث خطأ ما');
+      return const Left('حدث خطأ أثناء تسجيل الدخول');
     } catch (e) {
-      return const Left('حدث خطأ ما');
+      return const Left('حدث خطأ أثناء تسجيل الدخول');
     }
-  }
+  } // =========================
 
-  // =========================
   // Forgot Password
   // =========================
   static Future<Either<String, String>> forgotPassword({

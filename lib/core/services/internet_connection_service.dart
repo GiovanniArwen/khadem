@@ -24,32 +24,16 @@ class InternetConnectionService {
     });
   }
 
-  Future<void> _checkInternet() async {
-    try {
-      final connectivityResult = await _connectivity.checkConnectivity();
+Future<void> _checkInternet() async {
+  try {
+    final connectivityResult = await _connectivity.checkConnectivity();
 
-      if (connectivityResult.contains(ConnectivityResult.none)) {
-        isConnected.value = false;
-        return;
-      }
-
-      try {
-        final result = await InternetAddress.lookup(
-          'google.com',
-        ).timeout(const Duration(seconds: 3));
-
-        final hasInternet = result.isNotEmpty &&
-            result.first.rawAddress.isNotEmpty;
-
-        isConnected.value = hasInternet;
-      } catch (_) {
-        isConnected.value = false;
-      }
-    } catch (_) {
-      isConnected.value = false;
-    }
+    isConnected.value =
+        !connectivityResult.contains(ConnectivityResult.none);
+  } catch (_) {
+    isConnected.value = false;
   }
-
+}
   Future<void> dispose() async {
     await _subscription?.cancel();
     isConnected.dispose();

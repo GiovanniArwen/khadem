@@ -1,32 +1,32 @@
 // lib/features/completeProfile/presentation/screens/complete_profile_screen.dart
-
 import 'dart:io';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:khadem/core/routes/navigation.dart';
 import 'package:khadem/core/routes/routes.dart';
-import 'package:khadem/core/services/cloudinary_service.dart';
+import 'package:khadem/core/services/media/cloudinary_service.dart';
 import 'package:khadem/core/utils/colors.dart';
 import 'package:khadem/features/completeProfile/presentation/bloc/complete_profile_bloc.dart';
 import 'package:khadem/features/completeProfile/presentation/bloc/complete_profile_event.dart';
 import 'package:khadem/features/completeProfile/presentation/bloc/complete_profile_state.dart';
 import 'package:khadem/features/completeProfile/presentation/widgets/governorate_dropdown.dart';
-import 'package:khadem/features/completeProfile/presentation/widgets/profile_text_field.dart';
 import 'package:khadem/features/completeProfile/presentation/widgets/sectioncard.dart';
-import 'package:khadem/features/completeProfile/presentation/widgets/specialization_selector.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   final bool isServant;
   final bool isChurchAdmin;
-
+  final String name;
+  final String email;
+  final String password;
   const CompleteProfileScreen({
     super.key,
     required this.isServant,
     required this.isChurchAdmin,
+    required this.name,
+    required this.email,
+    required this.password,
   });
 
   @override
@@ -42,10 +42,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final churchController = TextEditingController();
   final bioController = TextEditingController();
   final meetingNameController = TextEditingController();
-
+  final instrumentsController = TextEditingController();
   String? selectedGovernorate;
-  String? selectedSpecialization;
-
+  final Set<String> selectedSpecializations = {};
   TimeOfDay? openHour;
   TimeOfDay? closeHour;
 
@@ -87,6 +86,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     {'name': 'واعظ', 'icon': Icons.record_voice_over_rounded},
     {'name': 'فريق تسبيح', 'icon': Icons.groups_2_rounded},
     {'name': 'فريق دراما', 'icon': Icons.theater_comedy_rounded},
+    {'name': 'عازف', 'icon': Icons.piano_rounded},
   ];
 
   @override
@@ -97,6 +97,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     churchController.dispose();
     bioController.dispose();
     meetingNameController.dispose();
+    instrumentsController.dispose();
     super.dispose();
   }
 
@@ -235,43 +236,51 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     // الصورة إجبارية للخادم فقط
     final needsImage = widget.isServant && imageFile == null;
 
+    final needsSpecialization =
+        widget.isServant && selectedSpecializations.isEmpty;
+
     if (needsImage) {
       setState(() => imageError = true);
     }
 
-    if (!isFormValid || needsImage) {
+    if (!isFormValid || needsImage || needsSpecialization) {
       if (needsImage) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('من فضلك أضف صورة شخصية')));
       }
-      return;
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('حدث خطأ، برجاء تسجيل الدخول مرة أخرى')),
-      );
+      if (needsSpecialization) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('من فضلك اختر تخصصًا واحدًا على الأقل')),
+        );
+      }
       return;
     }
 
     context.read<CompleteProfileBloc>().add(
       SaveCompleteProfileEvent(
-        uid: user.uid,
         isServant: widget.isServant,
         isChurchAdmin: widget.isChurchAdmin,
-        name: user.displayName ?? '',
-        email: user.email ?? '',
+        name: widget.name,
+        email: widget.email,
+        password: widget.password,
         imageFile: imageFile,
         phone1: phone1Controller.text.trim(),
         phone2: phone2Controller.text.trim(),
         age: ageController.text.trim(),
-        governorate: selectedGovernorate!,
+        governorate: selectedGovernorate ?? '',
         church: churchController.text.trim(),
         bio: bioController.text.trim(),
-        specialization: widget.isServant ? selectedSpecialization : null,
+
+        specialization: widget.isServant
+            ? selectedSpecializations.toList()
+            : null,
+
+        instruments:
+            widget.isServant && selectedSpecializations.contains('عازف')
+            ? instrumentsController.text.trim()
+            : null,
+
         openHour: widget.isServant ? _formatTime(openHour) : null,
         closeHour: widget.isServant ? _formatTime(closeHour) : null,
         meetingName: widget.isChurchAdmin
@@ -286,8 +295,6 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   // =========================
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: BlocConsumer<CompleteProfileBloc, CompleteProfileState>(
@@ -316,7 +323,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
             backgroundColor: AppColors.scaffoldColor,
             body: Column(
               children: [
-                _buildHeader(user?.displayName ?? 'أهلاً بك'),
+                _buildHeader(widget.name),
                 Expanded(
                   child: Form(
                     key: _formKey,
@@ -344,11 +351,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                                   if (value == null || value.trim().isEmpty) {
                                     return 'رقم الهاتف مطلوب';
                                   }
+
                                   if (!RegExp(
                                     r'^01[0125]\d{8}$',
                                   ).hasMatch(value.trim())) {
                                     return 'رقم هاتف غير صحيح';
                                   }
+
                                   return null;
                                 },
                               ),
@@ -430,15 +439,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                               icon: Icons.volunteer_activism_rounded,
                               title: 'بيانات الخادم',
                               children: [
-                                SpecializationSelector(
-                                  value: selectedSpecialization,
-                                  specializations: specializations,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      selectedSpecialization = value;
-                                    });
-                                  },
-                                ),
+                                _buildSpecializationsSelector(),
                                 const SizedBox(height: 20),
                                 _buildTimeRow(),
                                 const SizedBox(height: 18),
@@ -498,6 +499,94 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildSpecializationsSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'التخصصات',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textDarkColor,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: specializations.map((item) {
+            final name = item['name'] as String;
+            final icon = item['icon'] as IconData;
+            final isSelected = selectedSpecializations.contains(name);
+
+            return FilterChip(
+              selected: isSelected,
+              label: Text(name),
+              avatar: Icon(
+                icon,
+                size: 19,
+                color: isSelected
+                    ? AppColors.whiteColor
+                    : AppColors.primaryColor,
+              ),
+              selectedColor: AppColors.primaryColor,
+              checkmarkColor: AppColors.whiteColor,
+              labelStyle: TextStyle(
+                color: isSelected
+                    ? AppColors.whiteColor
+                    : AppColors.textDarkColor,
+                fontWeight: FontWeight.w600,
+              ),
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    selectedSpecializations.add(name);
+                  } else {
+                    selectedSpecializations.remove(name);
+
+                    // لو شال عازف، نمسح الآلات
+                    if (name == 'عازف') {
+                      instrumentsController.clear();
+                    }
+                  }
+                });
+              },
+            );
+          }).toList(),
+        ),
+
+        if (selectedSpecializations.contains('عازف')) ...[
+          const SizedBox(height: 20),
+          _buildInstrumentsField(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildInstrumentsField() {
+    return ProfileTextField(
+      controller: instrumentsController,
+      label: 'الآلات التي تجيد عزفها',
+      hint: 'مثال: جيتار، بيانو، كيبورد',
+      icon: Icons.music_note_rounded,
+      maxLines: 2,
+      validator: (value) {
+        if (!selectedSpecializations.contains('عازف')) {
+          return null;
+        }
+
+        if (value == null || value.trim().isEmpty) {
+          return 'اكتب اسم الآلة أو الآلات التي تجيد عزفها';
+        }
+
+        return null;
+      },
     );
   }
 

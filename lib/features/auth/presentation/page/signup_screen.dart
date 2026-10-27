@@ -1,12 +1,11 @@
 // lib/features/auth/presentation/screens/signup_screen.dart
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:khadem/core/routes/navigation.dart';
 import 'package:khadem/core/routes/routes.dart';
 import 'package:khadem/core/utils/colors.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:khadem/features/auth/presentation/bloc/auth_event.dart';
 import 'package:khadem/features/auth/presentation/bloc/auth_state.dart';
 import 'package:khadem/features/auth/presentation/widgets/auth_circle_button.dart';
 import 'package:khadem/features/auth/presentation/widgets/auth_text_field_forsign.dart';
@@ -43,7 +42,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _signUp() {
+  bool isCheckingEmail = false;
+
+  Future<void> _signUp() async {
     if (!formKey.currentState!.validate()) return;
 
     if (!isServant && !isChurchAdmin) {
@@ -60,15 +61,65 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    context.read<AuthBloc>().add(
-      SignUpEvent(
-        name: nameController.text.trim(),
-        email: emailController.text.trim(),
-        password: passwordController.text,
-        isServant: isServant,
-        isChurchAdmin: isChurchAdmin,
-      ),
-    );
+    setState(() => isCheckingEmail = true);
+
+    try {
+      final email = emailController.text.trim();
+
+      // محاولة إنشاء الحساب للتحقق فعليًا من أن الإيميل غير مستخدم.
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: email,
+            password: passwordController.text,
+          );
+
+      if (!mounted) return;
+
+      await credential.user?.updateDisplayName(nameController.text.trim());
+
+      if (!mounted) return;
+
+      pushWithReplacement(
+        context,
+        Routes.completeProfile,
+        extra: {
+          'name': nameController.text.trim(),
+          'email': email,
+          'password': passwordController.text,
+          'isServant': isServant,
+          'isChurchAdmin': isChurchAdmin,
+        },
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      final message = switch (e.code) {
+        'email-already-in-use' =>
+          'البريد الإلكتروني ده مسجل بالفعل. جرّب تسجيل الدخول.',
+        'invalid-email' => 'البريد الإلكتروني غير صحيح.',
+        'weak-password' => 'كلمة المرور ضعيفة. اختار كلمة مرور أقوى.',
+        'network-request-failed' =>
+          'تعذر الاتصال بالإنترنت. تحقق من اتصالك وحاول مجددًا.',
+        'too-many-requests' => 'محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.',
+        'operation-not-allowed' =>
+          'التسجيل بالبريد الإلكتروني غير مفعّل حاليًا.',
+        _ => 'تعذر إنشاء الحساب. رمز الخطأ: ${e.code}',
+      };
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('حدث خطأ غير متوقع. حاول مرة أخرى.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isCheckingEmail = false);
+      }
+    }
   }
 
   @override
@@ -77,17 +128,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       textDirection: TextDirection.rtl,
       child: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthSuccessState) {
-            pushWithReplacement(
-              context,
-              Routes.completeProfile,
-              extra: {
-                'isServant': state.isServant,
-                'isChurchAdmin': state.isChurchAdmin,
-              },
-            );
-          }
-
           if (state is AuthErrorState) {
             ScaffoldMessenger.of(
               context,

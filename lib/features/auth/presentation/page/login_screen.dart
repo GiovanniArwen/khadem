@@ -22,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   bool _isPasswordVisible = false;
+
   @override
   void dispose() {
     emailController.dispose();
@@ -107,8 +108,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  
   @override
   Widget build(BuildContext context) {
+  final bloc = context.read<AuthBloc>();
     return Directionality(
       textDirection: TextDirection.rtl,
       child: BlocListener<AuthBloc, AuthState>(
@@ -155,6 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         },
         child: BlocBuilder<AuthBloc, AuthState>(
+          bloc: bloc,
           builder: (context, state) {
             return Stack(
               children: [
@@ -233,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: ElevatedButton(
                                 onPressed: () {
                                   if (formKey.currentState!.validate()) {
-                                    context.read<AuthBloc>().add(
+                                    bloc.add(
                                       LoginEvent(
                                         email: emailController.text,
                                         password: passwordController.text,

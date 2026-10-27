@@ -9,19 +9,20 @@ import 'package:khadem/features/completeProfile/presentation/page/complete_profi
 import 'package:khadem/features/auth/presentation/page/login_screen.dart';
 import 'package:khadem/features/auth/presentation/page/signup_screen.dart';
 import 'package:khadem/features/intro/onboarding/onboarding_screen.dart';
-import 'package:khadem/features/mainScreen/agenda/data/repo/agenda_repo.dart';
-import 'package:khadem/features/mainScreen/agenda/presentation/bloc/agenda_bloc.dart';
-import 'package:khadem/features/mainScreen/agenda/presentation/pages/agenda_screen.dart';
-import 'package:khadem/features/mainScreen/chat/data/repo/chat_repo.dart';
-import 'package:khadem/features/mainScreen/chat/data/repo/user_profile_repo.dart';
-import 'package:khadem/features/mainScreen/chat/presentation/bloc/chat_bloc.dart';
-import 'package:khadem/features/mainScreen/chat/presentation/page/chat_screen.dart';
+import 'package:khadem/features/main_screen/agenda/data/repo/agenda_repo.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/bloc/agenda_bloc.dart';
+import 'package:khadem/features/main_screen/agenda/presentation/pages/agenda_screen.dart';
+import 'package:khadem/features/main_screen/chat/data/repo/chat_repo.dart';
+import 'package:khadem/features/main_screen/profile/data/repo/user_profile_repo.dart';
+import 'package:khadem/features/main_screen/chat/presentation/bloc/chat_bloc.dart';
+import 'package:khadem/features/main_screen/chat/presentation/page/chat_screen.dart';
 import 'package:khadem/features/intro/splash/splash_screen.dart';
-import 'package:khadem/features/mainScreen/main/nav_bar.dart';
-import 'package:khadem/features/mainScreen/profile/page/profile_screen.dart';
-import 'package:khadem/features/mainScreen/servants/data/models/servant_model.dart';
-import 'package:khadem/features/mainScreen/servants/presentation/page/servant_screen.dart';
-import 'package:khadem/features/mainScreen/servants/presentation/widgets/servant_details_screen.dart';
+import 'package:khadem/features/main_screen/main/nav_bar.dart';
+import 'package:khadem/features/main_screen/profile/page/profile_screen.dart';
+import 'package:khadem/features/main_screen/servants/data/models/servant_model.dart';
+import 'package:khadem/features/main_screen/servants/presentation/pages/servant_screen.dart';
+import 'package:khadem/features/main_screen/servants/presentation/pages/servant_details_screen.dart';
+import 'package:khadem/features/main_screen/help_support/presentation/pages/help_support_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -48,7 +49,7 @@ class Routes {
   static const String agenda = '/agenda_screen';
   static const String verifyEmail = '/verify_email';
   static const String onboarding = '/onboarding_screen';
-
+  static const String helpSupport = '/help_support';
   static final routes = GoRouter(
     navigatorKey: navigatorKey,
     routes: [
@@ -57,16 +58,25 @@ class Routes {
         path: chat,
         builder: (context, state) {
           final data = state.extra as Map<String, dynamic>;
+
+          final uid = data['uid']?.toString() ?? '';
+          final name = data['name']?.toString() ?? 'مستخدم';
+          final role = data['role']?.toString() ?? '';
+
+          debugPrint('========== CHAT ROUTE ==========');
+          debugPrint('CHAT UID: $uid');
+          debugPrint('CHAT NAME: $name');
+          debugPrint('CHAT NAME TYPE: ${data['name']?.runtimeType}');
+          debugPrint('CHAT ROLE: $role');
+          debugPrint('CHAT ROLE TYPE: ${data['role']?.runtimeType}');
+          debugPrint('================================');
+
           return BlocProvider(
             create: (_) => ChatBloc(
               chatRepo: ChatRepo(),
               userProfileRepo: UserProfileRepo(),
             ),
-            child: ChatScreen(
-              uid: data['uid'] as String,
-              name: data['name'] as String,
-              role: data['role'] as String,
-            ),
+            child: ChatScreen(uid: uid, name: name, role: role),
           );
         },
       ),
@@ -151,22 +161,29 @@ class Routes {
       GoRoute(
         path: servants,
         builder: (context, state) {
-          final roles = state.extra as Map<String, bool>?;
+          // final roles = state.extra as Map<String, bool>?;
           return ServantsScreen();
         },
       ),
       GoRoute(
         path: completeProfile,
         builder: (context, state) {
-          final data = state.extra as Map<String, bool>?;
+          final data = state.extra as Map<String, dynamic>? ?? {};
           return BlocProvider(
             create: (_) => CompleteProfileBloc(),
             child: CompleteProfileScreen(
-              isServant: data?['isServant'] ?? false,
-              isChurchAdmin: data?['isChurchAdmin'] ?? false,
+              isServant: data['isServant'] as bool? ?? false,
+              isChurchAdmin: data['isChurchAdmin'] as bool? ?? false,
+              name: data['name'] as String? ?? '',
+              email: data['email'] as String? ?? '',
+              password: data['password'] as String? ?? '',
             ),
           );
         },
+      ),
+      GoRoute(
+        path: helpSupport,
+        builder: (context, state) => const HelpSupportScreen(),
       ),
     ],
   );
